@@ -1,21 +1,24 @@
 from __future__ import annotations
 
-from specflow.core import memory
+from . import memory
 
 
-class Context():
-    memory: memory.MemoryManager
-    live: bool = False
+class Context:
+    def __init__(self) -> None:
+        self.memory: memory.MemoryManager = memory.MemoryManager()
 
 
-def init():
+_context: Context | None = None
+
+
+def init() -> None:
     print('Hello world')
-    Context.memory = memory.MemoryManager()
-    Context.live = True
+    global _context
+    _context = Context()
     print('Done')
 
 
-def get_context() -> type[Context]:
-    if not Context.live:
-        raise RuntimeError("Context has not been created. Call specflow.init() first.")
-    return Context
+def get_context() -> Context:
+    if _context is None:
+        raise RuntimeError("Context has not been created; call specflow.init() first.")
+    return _context

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import torch
 
-from specflow.core import get_context
+from . import get_context
 
 
-class Mesh():
+class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
