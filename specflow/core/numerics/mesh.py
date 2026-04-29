@@ -10,6 +10,7 @@ class Mesh:
 
     def __init__(self):
         self.grid = get_context().memory.alloc('mesh', self._grid_shape(), dtype=torch.int64)
+        self.grid.copy_(construct_spectral_grid())
 
     def _grid_shape(self) -> tuple[int, ...]:
         N: int = get_context().config.get('grid/N', int)
