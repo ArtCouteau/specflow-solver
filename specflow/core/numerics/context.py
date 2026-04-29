@@ -16,6 +16,9 @@ class Context:
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
 
+    def generate_mesh(self) -> None:
+        self.mesh = mesh.Mesh()
+
 
 _context: Context | None = None
 
@@ -25,11 +28,8 @@ def init() -> None:
     global _context
     _context = Context()
     _context.read_user_configuration()
+    _context.generate_mesh()
     print('Done')
-
-
-def generate_mesh() -> None:
-    get_context().mesh = mesh.Mesh()
 
 
 def get_context() -> Context:
