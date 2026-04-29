@@ -134,7 +134,6 @@ class YamlInterface(object):
 
 class UserConfiguration:
     _info: dict[str, Any]
-    _file: str
 
     def __init__(self):
         self._info = get_context().io.yaml.read('config')
