@@ -4,8 +4,10 @@ from . import memory
 
 
 class Context:
+    memory: memory.MemoryManager
+
     def __init__(self) -> None:
-        self.memory: memory.MemoryManager = memory.MemoryManager()
+        self.memory = memory.MemoryManager()
 
 
 _context: Context | None = None
