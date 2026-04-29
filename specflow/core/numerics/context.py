@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from . import io, memory
+from . import io, memory, mesh
 
 
 class Context:
-    memory: memory.MemoryManager
-    io: io.IOInterface
     config: io.UserConfiguration
+    io: io.IOInterface
+    memory: memory.MemoryManager
+    mesh: mesh.Mesh
 
     def __init__(self) -> None:
         self.memory = memory.MemoryManager()
@@ -25,6 +26,10 @@ def init() -> None:
     _context = Context()
     _context.read_user_configuration()
     print('Done')
+
+
+def generate_mesh() -> None:
+    get_context().mesh = mesh.Mesh()
 
 
 def get_context() -> Context:
