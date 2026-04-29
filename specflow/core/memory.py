@@ -4,8 +4,8 @@ import math
 import torch
 
 
-def _mib(n_bytes: int) -> str:
-    return f'{n_bytes / 1024 ** 2:.1f} MiB'
+def _mib(nBytes: int) -> str:
+    return f'{nBytes / 1024 ** 2:.1f} MiB'
 
 
 class MemoryManager:
