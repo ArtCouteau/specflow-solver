@@ -8,4 +8,5 @@ class Solver:
     equations: dict[str, equation.Equation]
 
     def __init__(self):
+        get_context().generate_simulation_controls()
         self.equations = {tag: equation.Equation(tag) for tag in get_context().config.get('equations', dict).keys()}

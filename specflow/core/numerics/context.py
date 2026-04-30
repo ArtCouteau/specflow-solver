@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from . import io, memory, mesh
+from . import control, io, memory, mesh
 
 
 class Context:
     config: io.UserConfiguration
+    control: control.SimulationControls
     io: io.IOInterface
     memory: memory.MemoryManager
     mesh: mesh.Mesh
@@ -18,6 +19,9 @@ class Context:
 
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
+
+    def generate_simulation_controls(self) -> None:
+        self.control = control.SimulationControls()
 
 
 _context: Context | None = None
