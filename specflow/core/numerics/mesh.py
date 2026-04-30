@@ -3,19 +3,15 @@ from __future__ import annotations
 import torch
 
 from . import get_context
+from ..physics import field
 
 
 class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
-        self.grid = get_context().memory.alloc('mesh', self.grid_shape(), dtype=torch.int64)
+        self.grid = get_context().memory.alloc('mesh', field.field_shape(field.Rank(1)), dtype=torch.int64)
         self.grid.copy_(construct_spectral_grid())
-
-    def grid_shape(self) -> tuple[int, ...]:
-        DIM: int = get_context().config.get('grid/dimension', int)
-
-        return (DIM,) + self.domain_shape()
 
     def domain_shape(self) -> tuple[int, ...]:
         N: int = get_context().config.get('grid/N', int)
@@ -44,8 +40,8 @@ def construct_spectral_grid() -> torch.Tensor:
     N: int = get_context().config.get('grid/N', int)
 
     return _construct_grid(
-        torch.fft.fftfreq(N, 1.0/N),
-        torch.fft.rfftfreq(N, 1.0/N)
+        torch.fft.fftfreq(N, 1.0/N),    # type: ignore
+        torch.fft.rfftfreq(N, 1.0/N)    # type: ignore
     ).to(
         dtype=torch.int64,
         device=get_context().config.get('numerics/device', str)
@@ -55,8 +51,8 @@ def construct_spectral_grid() -> torch.Tensor:
 def construct_full_spectral_grid() -> torch.Tensor:
     N: int = get_context().config.get('grid/N', int)
 
-    tmp = torch.fft.fftfreq(N, 1.0/N)
-    return _construct_grid(tmp, tmp).to(
+    tmp = torch.fft.fftfreq(N, 1.0/N)       # type: ignore
+    return _construct_grid(tmp, tmp).to(    # type: ignore
         dtype=torch.int64,
         device=get_context().config.get('numerics/device', str)
     )
