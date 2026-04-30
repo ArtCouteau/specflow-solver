@@ -9,14 +9,19 @@ class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
-        self.grid = get_context().memory.alloc('mesh', self._grid_shape(), dtype=torch.int64)
+        self.grid = get_context().memory.alloc('mesh', self.grid_shape(), dtype=torch.int64)
         self.grid.copy_(construct_spectral_grid())
 
-    def _grid_shape(self) -> tuple[int, ...]:
+    def grid_shape(self) -> tuple[int, ...]:
+        DIM: int = get_context().config.get('grid/dimension', int)
+
+        return (DIM,) + self.domain_shape()
+
+    def domain_shape(self) -> tuple[int, ...]:
         N: int = get_context().config.get('grid/N', int)
         DIM: int = get_context().config.get('grid/dimension', int)
 
-        return (DIM,) + (N,) * (DIM - 1) + (N // 2 + 1,)
+        return (N,) * (DIM - 1) + (N // 2 + 1,)
 
 
 def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
