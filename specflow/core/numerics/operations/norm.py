@@ -1,6 +1,6 @@
 import torch
 
-from . import dims
+from .. import dims
 
 
 def square_l2_norm_scalar(data: torch.Tensor) -> torch.Tensor:

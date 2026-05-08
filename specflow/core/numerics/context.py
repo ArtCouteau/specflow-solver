@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from specflow.core.physics import dealias
+
 from . import control, io, memory, mesh
 
 
@@ -8,6 +10,7 @@ class Context:
     io: io.IOInterface
     memory: memory.MemoryManager
     mesh: mesh.Mesh
+    physics: PhysicsContext
     sim: SimulationContext
 
     def __init__(self) -> None:
@@ -23,12 +26,22 @@ class Context:
     def generate_simulation_context(self) -> None:
         self.sim = SimulationContext()
 
+    def generate_physics_context(self) -> None:
+        self.physics = PhysicsContext(self)
+
 
 class SimulationContext:
     control: control.SimulationControls
 
     def __init__(self) -> None:
         self.control = control.SimulationControls()
+
+
+class PhysicsContext:
+    dealias: dealias.Dealias
+
+    def __init__(self, context: Context) -> None:
+        self.dealias = dealias.DealiasRegistry.get(context.config.get('schemes/dealiasing', str))()
 
 
 _context: Context | None = None

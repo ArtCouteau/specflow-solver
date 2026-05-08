@@ -1,6 +1,6 @@
 import torch
 
-from . import dims
+from .. import dims
 
 
 def to_physical(data: torch.Tensor) -> torch.Tensor:

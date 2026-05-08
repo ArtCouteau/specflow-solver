@@ -5,7 +5,8 @@ import torch
 from typing import Callable, Type
 
 from specflow.core.numerics.context import get_context
-from specflow.core.physics import dims, fourier, norm
+from specflow.core.numerics.operations import fourier, norm
+from specflow.core.numerics import dims
 
 
 class DealiasRegistry:
