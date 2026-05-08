@@ -1,6 +1,6 @@
 import torch
 
-from ...core.defs import DIMS_VECTOR, DIMS_TENSOR
+from . import dims
 
 
 def square_l2_norm_scalar(data: torch.Tensor) -> torch.Tensor:
@@ -12,8 +12,8 @@ def l2_norm(data: torch.Tensor) -> torch.Tensor:
 
 
 def square_l2_norm(data: torch.Tensor) -> torch.Tensor:
-    return (data.abs()**2).sum(dim=DIMS_VECTOR)
+    return (data.abs()**2).sum(dim=dims.VECTOR)
 
 
 def square_frobenius_norm(data: torch.Tensor) -> torch.Tensor:
-    return (data.abs()**2).sum(dim=DIMS_TENSOR)
+    return (data.abs()**2).sum(dim=dims.TENSOR)
