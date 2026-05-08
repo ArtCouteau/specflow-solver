@@ -27,6 +27,7 @@ class TimeControls:
             integrator.overwrite_dt(self.save.next - self.current)
             self.save.activate()
         else:
+            # To be moved to end of writing step
             self.save.deactivate()
 
 

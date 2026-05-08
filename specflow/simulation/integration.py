@@ -35,6 +35,9 @@ class TimeIntegrator:
 
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor: ...
 
+    def overwrite_dt(self, dt: float) -> None:
+        self.dt = dt
+
     def advance(self, equation: equation.Equation) -> None:
         equation.variable.data.add_(self.dt*self._compute_time_derivative(equation))
 
