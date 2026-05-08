@@ -48,7 +48,7 @@ class TimeIntegrator:
 @TimeIntegratorRegistry.register('EF')
 class EulerForward(TimeIntegrator):
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor:
-        return equation.compute_rhs(equation.variable.data, get_context().control.time.current)
+        return equation.compute_rhs(equation.variable.data, get_context().sim.control.time.current)
 
 
 @TimeIntegratorRegistry.register('RK4')
@@ -71,7 +71,7 @@ class RungeKutta4(TimeIntegrator):
 
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor:
         k = self.k[equation.tag]
-        t = get_context().control.time.current
+        t = get_context().sim.control.time.current
         u = equation.variable.data
 
         k[0].copy_(equation.compute_rhs(u,                    t))
@@ -105,7 +105,7 @@ class RungeKutta4LowStorage(TimeIntegrator):
         h = self.h[equation.tag]
         h.zero_()
         u = equation.variable.data
-        t = get_context().control.time.current
+        t = get_context().sim.control.time.current
 
         for i in range(5):
             h.mul_(self._beta[i]).add_(equation.compute_rhs(u, t + self._alpha[i] * self.dt))
@@ -143,7 +143,7 @@ class AdamsBashforth4(TimeIntegrator):
         rhs = self._rhs[equation.tag]
         step = self._step[equation.tag]
         w = self._weights[min(step, 3)]
-        f_n = equation.compute_rhs(equation.variable.data, get_context().control.time.current)
+        f_n = equation.compute_rhs(equation.variable.data, get_context().sim.control.time.current)
 
         equation.variable.data.add_(self.dt * w[0] * f_n)
         for j, wj in enumerate(w[1:]):

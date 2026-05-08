@@ -5,10 +5,10 @@ from . import control, io, memory, mesh
 
 class Context:
     config: io.UserConfiguration
-    control: control.SimulationControls
     io: io.IOInterface
     memory: memory.MemoryManager
     mesh: mesh.Mesh
+    sim: SimulationContext
 
     def __init__(self) -> None:
         self.memory = memory.MemoryManager()
@@ -20,7 +20,14 @@ class Context:
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
 
-    def generate_simulation_controls(self) -> None:
+    def generate_simulation_context(self) -> None:
+        self.sim = SimulationContext()
+
+
+class SimulationContext:
+    control: control.SimulationControls
+
+    def __init__(self) -> None:
         self.control = control.SimulationControls()
 
 
