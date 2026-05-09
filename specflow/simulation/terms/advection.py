@@ -10,7 +10,9 @@ from . import term
 
 @term.TermRegistry.register('advection', 'rotation')
 class RotationFormAdvectionTerm(term.Term):
-    def __init__(self):
+    def __init__(self, equation: str, tag: str):
+        super().__init__(equation, tag)
+
         if not self.rank.name == 'VECTOR':
             raise ValueError('Rotation form convection term can only be used in vector equations')
         if not get_context().config.get(f'grid/dimension', int) == 3:
@@ -32,7 +34,9 @@ class ConvectionFormAdvectionTerm(term.Term):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation
 
-    def __init__(self):
+    def __init__(self, equation: str, tag: str):
+        super().__init__(equation, tag)
+
         if self.rank.name == 'SCALAR':
             self.gradient = derivative.gradient_scalar
             self.operation = algebra.inner_vector_vector

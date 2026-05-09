@@ -4,7 +4,6 @@ import torch
 from typing import Type
 
 from specflow.core.physics import variable
-from specflow.simulation import solver
 
 
 class TermRegistry:
@@ -35,13 +34,14 @@ class TermRegistry:
 
 
 class Term:
+    equation: str
+    tag: str
     kind: str
     model: str
     rank: variable.Rank
 
-    def __init__(self):
-        pass
-
-    def setup(self, solver: solver.Solver) -> None: ...
+    def __init__(self, equation: str, tag: str):
+        self.equation = equation
+        self.tag = tag
 
     def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor: ...
