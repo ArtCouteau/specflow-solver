@@ -68,3 +68,11 @@ def construct_physical_grid() -> torch.Tensor:
         dtype=get_context().config.get('numerics/precision/float', torch.dtype),
         device=get_context().config.get('numerics/device', str)
     )
+
+
+def get_physical_grid() -> torch.Tensor:
+    return construct_physical_grid()
+
+
+def get_spectral_grid() -> torch.Tensor:
+    return construct_spectral_grid()
