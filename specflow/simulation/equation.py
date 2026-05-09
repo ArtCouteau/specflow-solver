@@ -4,27 +4,27 @@ import torch
 
 from .terms import term
 from ..core.numerics import get_context
-from ..core.physics import field
+from ..core.physics import variable
 
 
 class Equation:
     tag: str
-    rank: field.Rank
+    rank: variable.Rank
     terms: dict[str, term.Term]
-    variable: field.Field
+    variable: variable.Variable
 
     def __init__(self, tag: str):
         self.tag = tag
-        self.rank = field.Rank[get_context().config.get(f'equations/{self.tag}/rank', str).upper()]
+        self.rank = variable.Rank[get_context().config.get(f'equations/{self.tag}/rank', str).upper()]
         self._init_variable()
 
     def _init_variable(self) -> None:
-        self.variable = field.Field(
+        self.variable = variable.Variable(
             tag=get_context().config.get(f'equations/{self.tag}/variable', str),
             rank=self.rank,
             data=get_context().memory.alloc(
                 f'{self.tag}/variable',
-                field.field_shape(self.rank),
+                variable.field_shape(self.rank),
                 dtype=get_context().config.get('numerics/precision/complex', torch.dtype),
                 device=get_context().config.get('numerics/device', str)
             )

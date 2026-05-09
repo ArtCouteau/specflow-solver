@@ -12,7 +12,7 @@ class Rank(enum.Enum):
     TENSOR = 2
 
 
-class Field:
+class Variable:
     tag: str
     rank: Rank
     data: torch.Tensor

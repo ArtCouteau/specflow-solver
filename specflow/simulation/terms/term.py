@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from typing import Type
 
-from specflow.core.physics import field
+from specflow.core.physics import variable
 from specflow.simulation import solver
 
 
@@ -37,7 +37,7 @@ class TermRegistry:
 class Term:
     kind: str
     model: str
-    rank: field.Rank
+    rank: variable.Rank
 
     def __init__(self):
         pass

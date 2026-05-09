@@ -3,14 +3,14 @@ from __future__ import annotations
 import torch
 
 from . import get_context
-from ..physics import field
+from ..physics import variable
 
 
 class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
-        self.grid = get_context().memory.alloc('mesh', field.field_shape(field.Rank(1)), dtype=torch.int64)
+        self.grid = get_context().memory.alloc('mesh', variable.field_shape(variable.Rank(1)), dtype=torch.int64)
         self.grid.copy_(construct_spectral_grid())
 
     def domain_shape(self) -> tuple[int, ...]:
