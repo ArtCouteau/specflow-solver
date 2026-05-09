@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import torch
 
-from specflow.core.numerics.context import get_context
-from specflow.core.numerics.operations import algebra
-from specflow.simulation.terms import term
+from ...core.numerics.context import get_context
+from ...core.numerics.operations import algebra
+from ...core.physics import fields
+from . import term
 
 
 class RotationFormAdvectionTerm(term.Term):
@@ -21,5 +22,5 @@ class RotationFormAdvectionTerm(term.Term):
         return get_context().physics.dealias.apply(
             self._physical_space_operation,
             variable,
-            # add vorticity
+            fields.spectral.velocity.vorticity(variable)
         )
