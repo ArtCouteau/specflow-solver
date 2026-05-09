@@ -1,6 +1,9 @@
 from __future__ import annotations
+from typing import Literal
 
 import torch
+
+from specflow.core.numerics.operations import fourier
 
 from .terms import term
 from ..core.numerics import get_context
@@ -31,6 +34,12 @@ class Equation:
         )
 
         self.variable.data.zero_()
+
+    def set_initial_condition(self, data: torch.Tensor, space: Literal['physical', 'spectral']):
+        if space == 'physical':
+            self.variable.data.copy_(fourier.to_spectral(data))
+        else:
+            self.variable.data.copy_(data)
 
     def compute_rhs(self, variable: torch.Tensor, time: float) -> torch.Tensor:
         tmp = torch.zeros_like(variable)
