@@ -1,12 +1,11 @@
 from __future__ import annotations
-from typing import Literal
 
 import torch
-
-from specflow.core.numerics.operations import fourier
+from typing import Literal
 
 from .terms import term
 from ..core.numerics import get_context
+from ..core.numerics.operations import fourier
 from ..core.physics import variable
 
 
@@ -47,3 +46,10 @@ class Equation:
             tmp.add_(term.compute(variable, time))
 
         return tmp
+
+    def step(self) -> None:
+        _ctx = get_context()
+        _ctx.sim.integrator.advance(self)
+
+        if self.variable.data.isnan().any():
+            raise ValueError(f'NaN values detected in the variable of equation {self.tag}')

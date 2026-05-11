@@ -35,6 +35,10 @@ class TimeIntegrator:
 
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor: ...
 
+    def update(self) -> None:
+        # Add time step limiters logic
+        pass
+
     def overwrite_dt(self, dt: float) -> None:
         self.dt = dt
 
