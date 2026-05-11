@@ -13,12 +13,6 @@ class Mesh:
         self.grid = context.get().memory.alloc('mesh', variable.field_shape(variable.Rank(1)), dtype=torch.int64)
         self.grid.copy_(construct_spectral_grid())
 
-    def domain_shape(self) -> tuple[int, ...]:
-        N: int = context.get().config.get('grid/N', int)
-        DIM: int = context.get().config.get('grid/dimension', int)
-
-        return (N,) * (DIM - 1) + (N // 2 + 1,)
-
 
 def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
     DIM: int = context.get().config.get('grid/dimension', int)

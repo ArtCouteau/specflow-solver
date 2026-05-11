@@ -23,12 +23,19 @@ class Variable:
         self.data = data
 
 
+def _domain_shape() -> tuple[int, ...]:
+    N: int = context.get().config.get('grid/N', int)
+    DIM: int = context.get().config.get('grid/dimension', int)
+
+    return (N,) * (DIM - 1) + (N // 2 + 1,)
+
+
 def field_shape(rank: Rank) -> tuple[int, ...]:
     DIM: int = context.get().config.get('grid/dimension', int)
 
     if rank == Rank.SCALAR:
-        return context.get().mesh.domain_shape()
+        return _domain_shape()
     elif rank == Rank.VECTOR:
-        return (DIM,) + context.get().mesh.domain_shape()
+        return (DIM,) + _domain_shape()
     elif rank == Rank.TENSOR:
-        return (DIM, DIM,) + context.get().mesh.domain_shape()
+        return (DIM, DIM,) + _domain_shape()
