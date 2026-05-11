@@ -9,7 +9,7 @@ from typing import Any, Literal
 import torch
 import yaml
 
-from . import get_context
+from . import context
 
 
 class IOInterface(object):
@@ -136,7 +136,7 @@ class UserConfiguration:
     _info: dict[str, Any]
 
     def __init__(self):
-        self._info = get_context().io.yaml.read('config')
+        self._info = context.get().io.yaml.read('config')
         self._add_base('grid/length', 2.0*torch.pi)
         self._add_base('numerics/device', 'cuda' if torch.cuda.is_available() else 'cpu')
         self._add_base('numerics/precision', 'double')

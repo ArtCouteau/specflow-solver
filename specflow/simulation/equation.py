@@ -4,7 +4,7 @@ import torch
 from typing import Literal
 
 from .terms import term
-from ..core.numerics import get_context
+from ..core.numerics import context
 from ..core.numerics.operations import fourier
 from ..core.physics import variable
 
@@ -17,18 +17,18 @@ class Equation:
 
     def __init__(self, tag: str):
         self.tag = tag
-        self.rank = variable.Rank[get_context().config.get(f'equations/{self.tag}/rank', str).upper()]
+        self.rank = variable.Rank[context.get().config.get(f'equations/{self.tag}/rank', str).upper()]
         self._init_variable()
 
     def _init_variable(self) -> None:
         self.variable = variable.Variable(
-            tag=get_context().config.get(f'equations/{self.tag}/variable', str),
+            tag=context.get().config.get(f'equations/{self.tag}/variable', str),
             rank=self.rank,
-            data=get_context().memory.alloc(
+            data=context.get().memory.alloc(
                 f'{self.tag}/variable',
                 variable.field_shape(self.rank),
-                dtype=get_context().config.get('numerics/precision/complex', torch.dtype),
-                device=get_context().config.get('numerics/device', str)
+                dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
+                device=context.get().config.get('numerics/device', str)
             )
         )
 
@@ -48,7 +48,7 @@ class Equation:
         return tmp
 
     def step(self) -> None:
-        _ctx = get_context()
+        _ctx = context.get()
         _ctx.sim.integrator.advance(self)
 
         if self.variable.data.isnan().any():

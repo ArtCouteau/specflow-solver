@@ -59,7 +59,7 @@ def init() -> None:
     print('Done')
 
 
-def get_context() -> Context:
+def get() -> Context:
     if _context is None:
         raise RuntimeError("Context has not been created; call specflow.init() first.")
     return _context

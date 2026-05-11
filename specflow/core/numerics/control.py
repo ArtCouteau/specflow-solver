@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from . import get_context
+from . import context
 from .. import defs
 
 
@@ -19,8 +19,8 @@ class TimeControls:
     step: int
 
     def __init__(self):
-        self.current = get_context().config.get('time/start', float)
-        self.end = get_context().config.get('time/end', float)
+        self.current = context.get().config.get('time/start', float)
+        self.end = context.get().config.get('time/end', float)
         self.step = 0
         self.save = SaveControls(self.current)
 
@@ -34,7 +34,7 @@ class TimeControls:
             return f'{time:.{defs.TIMESTAMP_DIGITS}f}'
 
     def update(self):
-        _integ = get_context().sim.integrator
+        _integ = context.get().sim.integrator
         if self.current + _integ.dt > self.save.next:
             _integ.overwrite_dt(self.save.next - self.current)
             self.save.activate()
@@ -50,7 +50,7 @@ class SaveControls:
 
     def __init__(self, current: float):
         self.active = True
-        self.every = get_context().config.get('save/every', float)
+        self.every = context.get().config.get('save/every', float)
         self.next = current + self.every
 
     def activate(self) -> None:

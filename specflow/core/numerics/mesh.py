@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from . import get_context
+from . import context
 from ..physics import variable
 
 
@@ -10,18 +10,18 @@ class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
-        self.grid = get_context().memory.alloc('mesh', variable.field_shape(variable.Rank(1)), dtype=torch.int64)
+        self.grid = context.get().memory.alloc('mesh', variable.field_shape(variable.Rank(1)), dtype=torch.int64)
         self.grid.copy_(construct_spectral_grid())
 
     def domain_shape(self) -> tuple[int, ...]:
-        N: int = get_context().config.get('grid/N', int)
-        DIM: int = get_context().config.get('grid/dimension', int)
+        N: int = context.get().config.get('grid/N', int)
+        DIM: int = context.get().config.get('grid/dimension', int)
 
         return (N,) * (DIM - 1) + (N // 2 + 1,)
 
 
 def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
-    DIM: int = get_context().config.get('grid/dimension', int)
+    DIM: int = context.get().config.get('grid/dimension', int)
 
     _grid: torch.Tensor = torch.empty()
     if DIM == 1:
@@ -37,36 +37,36 @@ def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
 
 
 def construct_spectral_grid() -> torch.Tensor:
-    N: int = get_context().config.get('grid/N', int)
+    N: int = context.get().config.get('grid/N', int)
 
     return _construct_grid(
         torch.fft.fftfreq(N, 1.0/N),    # type: ignore
         torch.fft.rfftfreq(N, 1.0/N)    # type: ignore
     ).to(
         dtype=torch.int64,
-        device=get_context().config.get('numerics/device', str)
+        device=context.get().config.get('numerics/device', str)
     )
 
 
 def construct_full_spectral_grid() -> torch.Tensor:
-    N: int = get_context().config.get('grid/N', int)
+    N: int = context.get().config.get('grid/N', int)
 
     tmp = torch.fft.fftfreq(N, 1.0/N)       # type: ignore
     return _construct_grid(tmp, tmp).to(    # type: ignore
         dtype=torch.int64,
-        device=get_context().config.get('numerics/device', str)
+        device=context.get().config.get('numerics/device', str)
     )
 
 
 def construct_physical_grid() -> torch.Tensor:
-    L: float = get_context().config.get('grid/length', float)
-    N: int = get_context().config.get('grid/N', int)
+    L: float = context.get().config.get('grid/length', float)
+    N: int = context.get().config.get('grid/N', int)
 
     tmp = L/N*torch.torch.arange(0, N)
 
     return _construct_grid(tmp, tmp).to(
-        dtype=get_context().config.get('numerics/precision/float', torch.dtype),
-        device=get_context().config.get('numerics/device', str)
+        dtype=context.get().config.get('numerics/precision/float', torch.dtype),
+        device=context.get().config.get('numerics/device', str)
     )
 
 

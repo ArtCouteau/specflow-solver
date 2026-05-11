@@ -3,16 +3,16 @@ from __future__ import annotations
 import time
 
 from . import equation
-from ..core.numerics import get_context
+from ..core.numerics import context
 
 
 class Solver:
     equations: dict[str, equation.Equation]
 
     def __init__(self):
-        get_context().generate_simulation_context()
-        get_context().generate_physics_context()
-        self.equations = {tag: equation.Equation(tag) for tag in get_context().config.get('equations', dict).keys()}
+        context.get().generate_simulation_context()
+        context.get().generate_physics_context()
+        self.equations = {tag: equation.Equation(tag) for tag in context.get().config.get('equations', dict).keys()}
 
     def _step(self):
         for equation in self.equations.values():
@@ -22,19 +22,19 @@ class Solver:
         print('\n\nStarting time loop\n')
 
         print('Clean output directory')
-        get_context().io.output.make_or_clean_dir('output')
+        context.get().io.output.make_or_clean_dir('output')
 
         _t0 = time.perf_counter()
-        _ctrl = get_context().sim.control
+        _ctrl = context.get().sim.control
         while _ctrl.time.advance():
             print(f'Step {_ctrl.time.step}')
             print(f'Time = {_ctrl.time.current:.5f}')
 
-            get_context().sim.integrator.update()
-            print(f'Time step = {get_context().sim.integrator.dt:.5f}')
+            context.get().sim.integrator.update()
+            print(f'Time step = {context.get().sim.integrator.dt:.5f}')
 
             if _ctrl.time.save.active:
-                get_context().io.output.make_dir(f'output/{_ctrl.time.timestamp()}')
+                context.get().io.output.make_dir(f'output/{_ctrl.time.timestamp()}')
 
             self._step()
 

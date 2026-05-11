@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from ...core.numerics.context import get_context
+from ...core.numerics import context
 from ...core.numerics.operations import derivative
 from . import term
 
@@ -22,7 +22,7 @@ class ConstantDiffusivityDiffusionTerm(term.Term):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = get_context().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
+        self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
 
     def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
         return self.diffusivity * self.laplacian(variable)

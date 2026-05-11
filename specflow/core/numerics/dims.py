@@ -1,10 +1,10 @@
 
 
-from specflow.core.numerics.context import get_context
+from . import context
 
 VECTOR = (0,)
 TENSOR = (0, 1)
 
 
 def domain() -> tuple[int, ...]:
-    return tuple(range(-get_context().config.get('grid/dimension', int), 0))
+    return tuple(range(-context.get().config.get('grid/dimension', int), 0))

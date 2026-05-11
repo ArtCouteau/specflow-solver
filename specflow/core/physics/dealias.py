@@ -4,7 +4,7 @@ import math
 import torch
 from typing import Callable, Type
 
-from specflow.core.numerics.context import get_context
+from ..numerics import context
 from specflow.core.numerics.operations import fourier, norm
 from specflow.core.numerics import dims
 
@@ -49,10 +49,10 @@ class SmoothingDealias(Dealias):
     order: int
 
     def __init__(self):
-        get_context().config.get('schemes/dealias/order', int, 36)
+        context.get().config.get('schemes/dealias/order', int, 36)
 
     def _filter(self) -> torch.Tensor:
-        return torch.exp(self.order * norm.l2_norm(get_context().mesh.grid)**self.order)
+        return torch.exp(self.order * norm.l2_norm(context.get().mesh.grid)**self.order)
 
     def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
         return (
@@ -64,7 +64,7 @@ class SmoothingDealias(Dealias):
 @DealiasRegistry.register('2/3')
 class TwoThirdsDealias(Dealias):
     def _filter(self) -> torch.Tensor:
-        return (norm.square_l2_norm(get_context().mesh.grid) < (get_context().config.get('grid/N', int)/3.0)**2)
+        return (norm.square_l2_norm(context.get().mesh.grid) < (context.get().config.get('grid/N', int)/3.0)**2)
 
     def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
         return (
@@ -80,8 +80,8 @@ class PhaseshiftDealias(Dealias):
             data
             * torch.exp(
                 1.0j
-                * get_context().mesh.grid.sum(dim=dims.VECTOR)
-                * math.pi/get_context().config.get('grid/N', int)
+                * context.get().mesh.grid.sum(dim=dims.VECTOR)
+                * math.pi/context.get().config.get('grid/N', int)
             )
         )
 
@@ -90,13 +90,13 @@ class PhaseshiftDealias(Dealias):
             data
             * torch.exp(
                 - 1.0j
-                * get_context().mesh.grid.sum(dim=dims.VECTOR)
-                * math.pi/get_context().config.get('grid/N', int)
+                * context.get().mesh.grid.sum(dim=dims.VECTOR)
+                * math.pi/context.get().config.get('grid/N', int)
             )
         )
 
     def _filter(self) -> torch.Tensor:
-        return (norm.square_l2_norm(get_context().mesh.grid) < (get_context().config.get('grid/N', int)/3.0)**2)
+        return (norm.square_l2_norm(context.get().mesh.grid) < (context.get().config.get('grid/N', int)/3.0)**2)
 
     def _transform_backward(self, data: torch.Tensor) -> torch.Tensor:
         return self._inverse_shift(fourier.to_spectral(data))

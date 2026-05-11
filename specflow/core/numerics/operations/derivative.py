@@ -2,7 +2,7 @@ import torch
 from typing import Callable
 
 from . import algebra, norm
-from ..context import get_context
+from .. import context
 
 
 Gradient = Callable[[torch.Tensor], torch.Tensor]
@@ -12,24 +12,24 @@ Laplacian = Callable[[torch.Tensor], torch.Tensor]
 def nabla() -> torch.Tensor:
     return (
         1.0
-        * get_context().mesh.grid
-    ).to(get_context().config.get('numerics/precision/complex', torch.dtype))
+        * context.get().mesh.grid
+    ).to(context.get().config.get('numerics/precision/complex', torch.dtype))
 
 
 def nabla2() -> torch.Tensor:
     return (
-        - norm.square_l2_norm(get_context().mesh.grid)
-    ).to(get_context().config.get('numerics/precision/float', torch.dtype))
+        - norm.square_l2_norm(context.get().mesh.grid)
+    ).to(context.get().config.get('numerics/precision/float', torch.dtype))
 
 
 def inv_nabla2() -> torch.Tensor:
     return (
         - 1.0/torch.where(
-            norm.square_l2_norm(get_context().mesh.grid) == 0,
+            norm.square_l2_norm(context.get().mesh.grid) == 0,
             1,
-            norm.square_l2_norm(get_context().mesh.grid)
+            norm.square_l2_norm(context.get().mesh.grid)
         )
-    ).to(get_context().config.get('numerics/precision/float', torch.dtype))
+    ).to(context.get().config.get('numerics/precision/float', torch.dtype))
 
 
 def curl_vector(vector: torch.Tensor) -> torch.Tensor:
