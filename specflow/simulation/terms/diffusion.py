@@ -7,6 +7,7 @@ from ...core.numerics.operations import derivative
 from . import term
 
 
+@term.TermRegistry.register('diffusion', 'constant')
 class ConstantDiffusivityDiffusionTerm(term.Term):
     diffusivity: float
     laplacian: derivative.Laplacian
