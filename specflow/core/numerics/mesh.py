@@ -22,7 +22,6 @@ class Mesh:
 def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
     DIM: int = context.get().config.get('grid/dimension', int)
 
-    _grid: torch.Tensor = torch.empty()
     if DIM == 1:
         _grid = dimLast.unsqueeze(0)
     elif DIM == 2:
