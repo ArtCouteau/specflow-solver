@@ -20,7 +20,7 @@ class Equation:
         self.rank = variable.Rank[context.get().config.get(f'equations/{self.tag}/rank', str).upper()]
         self.terms = {
             termTag: term.TermRegistry.get(
-                context.get().config.get(f'equations/{tag}/terms/{termTag}/type', str),
+                context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str),
                 context.get().config.get(f'equations/{tag}/terms/{termTag}/model', str)
             )(self.tag, termTag, self.rank)
             for termTag in context.get().config.get(f'equations/{tag}/terms', dict).keys()
