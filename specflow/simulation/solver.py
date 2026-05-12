@@ -14,6 +14,9 @@ class Solver:
         context.get().generate_physics_context()
         self.equations = {tag: equation.Equation(tag) for tag in context.get().config.get('equations', dict).keys()}
 
+    def _setup(self):
+        context.get().sim.integrator.setup(self.equations)
+
     def _step(self):
         for equation in self.equations.values():
             equation.step()
@@ -24,6 +27,10 @@ class Solver:
         print('Clean output directory')
         context.get().io.output.make_or_clean_dir('output')
 
+        print('Setup simulation')
+        self._setup()
+
+        print('Running time loop')
         _t0 = time.perf_counter()
         _ctrl = context.get().sim.control
         while _ctrl.time.advance():
