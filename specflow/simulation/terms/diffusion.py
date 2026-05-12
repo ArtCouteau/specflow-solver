@@ -4,6 +4,7 @@ import torch
 
 from ...core.numerics import context
 from ...core.numerics.operations import derivative
+from ...core.physics import variable
 from . import term
 
 
@@ -12,8 +13,8 @@ class ConstantDiffusivityDiffusionTerm(term.Term):
     diffusivity: float
     laplacian: derivative.Laplacian
 
-    def __init__(self, equation: str, tag: str):
-        super().__init__(equation, tag)
+    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+        super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':
             self.laplacian = derivative.laplacian_scalar

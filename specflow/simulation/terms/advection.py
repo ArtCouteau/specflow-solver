@@ -4,14 +4,14 @@ import torch
 
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative
-from ...core.physics import fields
+from ...core.physics import fields, variable
 from . import term
 
 
 @term.TermRegistry.register('advection', 'rotation')
 class RotationFormAdvectionTerm(term.Term):
-    def __init__(self, equation: str, tag: str):
-        super().__init__(equation, tag)
+    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+        super().__init__(equation, tag, rank)
 
         if not self.rank.name == 'VECTOR':
             raise ValueError('Rotation form convection term can only be used in vector equations')
@@ -34,8 +34,8 @@ class ConvectionFormAdvectionTerm(term.Term):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation
 
-    def __init__(self, equation: str, tag: str):
-        super().__init__(equation, tag)
+    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+        super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':
             self.gradient = derivative.gradient_scalar
