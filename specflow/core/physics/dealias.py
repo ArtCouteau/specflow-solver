@@ -39,7 +39,7 @@ class Dealias:
         transform_backward: Callable[[torch.Tensor], torch.Tensor],
         *data: torch.Tensor
     ) -> torch.Tensor:
-        return transform_backward(function(*(transform_forward(d) for d in data)))
+        return transform_forward(function(*(transform_backward(d) for d in data)))
 
     def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor: ...
 
