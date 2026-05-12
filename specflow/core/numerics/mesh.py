@@ -10,7 +10,12 @@ class Mesh:
     grid: torch.Tensor
 
     def __init__(self):
-        self.grid = context.get().memory.alloc('mesh', variable.field_shape(variable.Rank(1)), dtype=torch.int64)
+        self.grid = context.get().memory.alloc(
+            'mesh',
+            variable.field_shape(variable.Rank(1)),
+            dtype=torch.int64,
+            device=context.get().config.get('numerics/device', str)
+        )
         self.grid.copy_(construct_spectral_grid())
 
 
