@@ -99,10 +99,10 @@ class PhaseshiftDealias(Dealias):
         return (norm.square_l2_norm(context.get().mesh.grid) < (context.get().config.get('grid/N', int)/3.0)**2)
 
     def _transform_backward(self, data: torch.Tensor) -> torch.Tensor:
-        return self._inverse_shift(fourier.to_spectral(data))
+        return fourier.to_physical(self._shift(data))
 
     def _transform_forward(self, data: torch.Tensor) -> torch.Tensor:
-        return fourier.to_physical(self._shift(data))
+        return self._inverse_shift(fourier.to_spectral(data))
 
     def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
         return (
