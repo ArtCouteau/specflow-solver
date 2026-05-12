@@ -21,6 +21,11 @@ class Solver:
         for equation in self.equations.values():
             equation.step()
 
+    def _write_state(self):
+        context.get().io.output.make_dir(f'output/{context.get().sim.control.time.timestamp()}')
+        for equation in self.equations.values():
+            equation.write_state()
+
     def run(self) -> None:
         print('\n\nStarting time loop\n')
 
@@ -41,7 +46,7 @@ class Solver:
             print(f'Time step = {context.get().sim.integrator.dt:.5f}')
 
             if _ctrl.time.save.active:
-                context.get().io.output.make_dir(f'output/{_ctrl.time.timestamp()}')
+                self._write_state()
 
             self._step()
 

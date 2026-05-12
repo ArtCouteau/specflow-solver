@@ -42,6 +42,9 @@ class TimeControls:
             # To be moved to end of writing step
             self.save.deactivate()
 
+        self.current += _integ.dt
+        self.step += 1
+
 
 class SaveControls:
     active: bool

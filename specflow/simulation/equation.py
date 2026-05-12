@@ -60,3 +60,11 @@ class Equation:
 
         if self.variable.data.isnan().any():
             raise ValueError(f'NaN values detected in the variable of equation {self.tag}')
+
+    def write_state(self) -> None:
+        context.get().io.h5.write_tensor(
+            f'output/{context.get().sim.control.time.timestamp()}/simulation',
+            f'{self.tag}/variable',
+            self.variable.data,
+            {'rank': self.rank.name}
+        )

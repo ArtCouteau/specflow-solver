@@ -37,7 +37,7 @@ class TimeIntegrator:
 
     def update(self) -> None:
         # Add time step limiters logic
-        pass
+        self.dt = context.get().config.get('time/dt', float)
 
     def overwrite_dt(self, dt: float) -> None:
         self.dt = dt
