@@ -68,9 +68,19 @@ class Equation:
             raise ValueError(f'NaN values detected in the variable of equation {self.tag}')
 
     def write_state(self) -> None:
-        context.get().io.h5.write_tensor(
-            f'output/{context.get().sim.control.time.timestamp()}/simulation',
-            f'{self.tag}/variable',
-            self.variable.data,
-            {'rank': self.rank.name}
-        )
+        if context.get().config.get('save/state', bool, True):
+            context.get().io.h5.write_tensor(
+                f'output/{context.get().sim.control.time.timestamp()}/simulation',
+                f'{self.tag}/variable',
+                self.variable.data,
+                {'rank': self.rank.name}
+            )
+
+        if context.get().config.get('save/terms', bool, False):
+            for key, term in self.terms.items():
+                context.get().io.h5.write_tensor(
+                    f'output/{context.get().sim.control.time.timestamp()}/simulation',
+                    f'{self.tag}/terms/{key}',
+                    term.compute(self.variable.data, context.get().sim.control.time.current),
+                    {'rank': self.rank.name}
+                )
