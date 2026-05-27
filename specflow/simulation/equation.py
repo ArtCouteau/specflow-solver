@@ -71,7 +71,7 @@ class Equation:
         if context.get().config.get('save/state', bool, True):
             context.get().io.h5.write_tensor(
                 f'output/{context.get().sim.control.time.timestamp()}/simulation',
-                f'{self.tag}/variable',
+                f'{self.tag}/fields/{self.variable.tag}',
                 self.variable.data,
                 {'rank': self.rank.name}
             )
@@ -80,7 +80,7 @@ class Equation:
             for key, term in self.terms.items():
                 context.get().io.h5.write_tensor(
                     f'output/{context.get().sim.control.time.timestamp()}/simulation',
-                    f'{self.tag}/terms/{key}',
+                    f'{self.tag}/fields/terms/{key}',
                     term.compute(self.variable.data, context.get().sim.control.time.current),
                     {'rank': self.rank.name}
                 )
