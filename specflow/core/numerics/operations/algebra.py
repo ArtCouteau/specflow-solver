@@ -1,6 +1,5 @@
-
-from typing import Callable
 import torch
+from typing import Callable
 
 from . import rank
 from .. import dims

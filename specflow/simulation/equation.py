@@ -6,7 +6,7 @@ from typing import Literal
 from . import solver
 from .terms import term
 from ..core.numerics import context
-from ..core.numerics.operations import fourier
+from ..core.numerics.operations import fourier, projection
 from ..core.physics import variable
 
 
@@ -57,7 +57,8 @@ class Equation:
         for term in self.terms.values():
             tmp.add_(term.compute(variable, time))
 
-        return tmp
+        # TODO: hardcoded
+        return projection.to_divergence_free_plane(tmp)
 
     def step(self) -> None:
         _ctx = context.get()
