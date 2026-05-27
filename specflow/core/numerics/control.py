@@ -38,9 +38,6 @@ class TimeControls:
         if self.current + _integ.dt > self.save.next:
             _integ.overwrite_dt(self.save.next - self.current)
             self.save.activate()
-        else:
-            # To be moved to end of writing step
-            self.save.deactivate()
 
         self.current += _integ.dt
         self.step += 1

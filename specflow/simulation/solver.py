@@ -47,6 +47,7 @@ class Solver:
 
             if _ctrl.time.save.active:
                 self._write_state()
+                _ctrl.time.save.deactivate()
 
             self._step()
 
