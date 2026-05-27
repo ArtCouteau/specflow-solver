@@ -4,6 +4,7 @@ import torch
 from typing import Callable, Type
 
 from . import equation
+from ..core import defs
 from ..core.numerics import context
 
 
@@ -37,15 +38,25 @@ class TimeIntegrator:
 
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor: ...
 
+    def _get_time_step_target_ratio(self) -> float:
+        _ratio = 1.25
+        for key, limiter in self.limiters.items():
+            _value = limiter.current()
+            print(f'Time step limiter: {key} = {_value:.5f}')
+            _ratio = min(_ratio, limiter.target/(_value + defs.SMALL))
+
+        return max(0.8, min(1.25, _ratio))
+
     def add_time_step_limiter(self, tag: str, target: float, func: Callable[[], float]) -> None:
         if not tag in self.limiters.keys():
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
         else:
             raise KeyError(f'Time step limiter for "{tag}" already exists.')
 
+        print(f'Added time step limiter "{tag}" (target = {target:.2f})')
+
     def update(self) -> None:
-        # Add time step limiters logic
-        self.dt = context.get().config.get('time/dt', float)
+        self.dt *= self._get_time_step_target_ratio()
 
     def overwrite_dt(self, dt: float) -> None:
         self.dt = dt
@@ -170,9 +181,12 @@ class AdamsBashforth4(TimeIntegrator):
 class TimeStepLimiter(object):
     tag: str
     target: float
-    current: Callable[[], float]
+    _current: Callable[[], float]
 
     def __init__(self, tag: str, target: float, func: Callable[[], float]) -> None:
         self.tag = tag
         self.target = target
-        self.current = func
+        self._current = func
+
+    def current(self) -> float:
+        return self._current()
