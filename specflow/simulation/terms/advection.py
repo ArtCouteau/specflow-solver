@@ -3,13 +3,33 @@ from __future__ import annotations
 import torch
 
 from ...core.numerics import context
-from ...core.numerics.operations import algebra, derivative
+from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 from . import term
 
 
+class AdvectionTerm(term.Term):
+    velocity: variable.Variable
+
+    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+        super().__init__(equation, tag, rank)
+
+        context.get().sim.integrator.add_time_step_limiter(
+            tag,
+            context.get().config.get(f'time/limiters/{tag}', float, 0.5),
+            self._CFL_number
+        )
+
+    def _CFL_number(self) -> float:
+        return (
+            fourier.to_physical(self.velocity.data).abs().max().item()
+            * context.get().sim.integrator.dt
+            / context.get().mesh.physical_grid_spacing()
+        )
+
+
 @term.TermRegistry.register('advection', 'rotation')
-class RotationFormAdvectionTerm(term.Term):
+class RotationFormAdvectionTerm(AdvectionTerm):
     def __init__(self, equation: str, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
@@ -30,7 +50,7 @@ class RotationFormAdvectionTerm(term.Term):
 
 
 @term.TermRegistry.register('advection', 'convection')
-class ConvectionFormAdvectionTerm(term.Term):
+class ConvectionFormAdvectionTerm(AdvectionTerm):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation
 

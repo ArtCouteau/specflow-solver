@@ -18,6 +18,9 @@ class Mesh:
         )
         self.grid.copy_(construct_spectral_grid())
 
+    def physical_grid_spacing(self) -> float:
+        return context.get().config.get('grid/length', float)/context.get().config.get('grid/N', int)
+
 
 def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
     DIM: int = context.get().config.get('grid/dimension', int)
