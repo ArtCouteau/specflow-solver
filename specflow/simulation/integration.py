@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Type
+from typing import Callable, Type
 
 import torch
 
@@ -29,11 +29,19 @@ class TimeIntegratorRegistry:
 
 class TimeIntegrator:
     dt: float
+    limiters: dict[str, TimeStepLimiter]
 
     def __init__(self):
         self.dt = context.get().config.get('time/dt', float)
+        self.limiters = {}
 
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor: ...
+
+    def add_time_step_limiter(self, tag: str, target: float, func: Callable[[], float]) -> None:
+        if not tag in self.limiters.keys():
+            self.limiters[tag] = TimeStepLimiter(tag, target, func)
+        else:
+            raise KeyError(f'Time step limiter for "{tag}" already exists.')
 
     def update(self) -> None:
         # Add time step limiters logic
@@ -157,3 +165,14 @@ class AdamsBashforth4(TimeIntegrator):
             rhs[j].copy_(rhs[j - 1])
         rhs[0].copy_(f_n)
         self._step[equation.tag] += 1
+
+
+class TimeStepLimiter(object):
+    tag: str
+    target: float
+    current: Callable[[], float]
+
+    def __init__(self, tag: str, target: float, func: Callable[[], float]) -> None:
+        self.tag = tag
+        self.target = target
+        self.current = func
