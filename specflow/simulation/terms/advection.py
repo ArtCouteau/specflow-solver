@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import torch
 
+from specflow.simulation.solver import Solver
+
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
@@ -26,6 +28,10 @@ class AdvectionTerm(term.Term):
             * context.get().sim.integrator.dt
             / context.get().mesh.physical_grid_spacing()
         )
+
+    def add_references(self, solver: Solver) -> None:
+        # TODO: hardcoded
+        self.velocity = solver.equations['Navier-Stokes'].variable
 
 
 @term.TermRegistry.register('advection', 'rotation')

@@ -17,6 +17,9 @@ class Solver:
     def _setup(self):
         context.get().sim.integrator.setup(self.equations)
 
+        for equation in self.equations.values():
+            equation.add_references(self)
+
     def _step(self):
         for equation in self.equations.values():
             equation.step()

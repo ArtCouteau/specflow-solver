@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 from typing import Literal
 
+from . import solver
 from .terms import term
 from ..core.numerics import context
 from ..core.numerics.operations import fourier
@@ -40,6 +41,10 @@ class Equation:
         )
 
         self.variable.data.zero_()
+
+    def add_references(self, solver: solver.Solver) -> None:
+        for term in self.terms.values():
+            term.add_references(solver)
 
     def set_initial_condition(self, data: torch.Tensor, space: Literal['physical', 'spectral']):
         if space == 'physical':

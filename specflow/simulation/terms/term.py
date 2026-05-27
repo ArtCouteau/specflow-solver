@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 from typing import Type
 
+from .. import solver
 from ...core.physics import variable
 
 
@@ -45,4 +46,5 @@ class Term:
         self.tag = tag
         self.rank = rank
 
+    def add_references(self, solver: solver.Solver) -> None: ...
     def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor: ...

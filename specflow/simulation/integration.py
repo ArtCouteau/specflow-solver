@@ -1,7 +1,7 @@
 from __future__ import annotations
-from typing import Callable, Type
 
 import torch
+from typing import Callable, Type
 
 from . import equation
 from ..core.numerics import context
