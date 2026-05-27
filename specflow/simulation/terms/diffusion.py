@@ -8,8 +8,21 @@ from ...core.physics import variable
 from . import term
 
 
+class DiffusionTerm(term.Term):
+    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+        super().__init__(equation, tag, rank)
+
+        context.get().sim.integrator.add_time_step_limiter(
+            tag,
+            context.get().config.get(f'time/limiters/{tag}', float, 0.5),
+            self._diffusion_number
+        )
+
+    def _diffusion_number(self) -> float: ...
+
+
 @term.TermRegistry.register('diffusion', 'constant')
-class ConstantDiffusivityDiffusionTerm(term.Term):
+class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
     diffusivity: float
     laplacian: derivative.Laplacian
 
@@ -24,6 +37,13 @@ class ConstantDiffusivityDiffusionTerm(term.Term):
             raise NotImplementedError()
 
         self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
+
+    def _diffusion_number(self) -> float:
+        return (
+            self.diffusivity
+            * context.get().sim.integrator.dt
+            / context.get().mesh.physical_grid_spacing()**2
+        )
 
     def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
         return self.diffusivity * self.laplacian(variable)
