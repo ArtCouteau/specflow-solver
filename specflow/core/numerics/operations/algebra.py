@@ -8,7 +8,7 @@ InterRankOperation = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 def cross_vector_vector(vectorA: torch.Tensor, vectorB: torch.Tensor) -> torch.Tensor:
-    return vectorA.cross(vectorB, dim=dims.VECTOR[0])
+    return vectorA.cross(vectorB, dim=dims.VECTOR)
 
 
 def inner_vector_vector(vectorA: torch.Tensor, vectorB: torch.Tensor) -> torch.Tensor:

@@ -2,7 +2,7 @@
 
 from . import context
 
-VECTOR = (0,)
+VECTOR = 0
 TENSOR = (0, 1)
 
 
