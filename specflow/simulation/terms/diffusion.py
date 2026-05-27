@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import torch
 
+from . import term
 from ...core.numerics import context
 from ...core.numerics.operations import derivative
 from ...core.physics import variable
-from . import term
 
 
 class DiffusionTerm(term.Term):
@@ -14,7 +14,7 @@ class DiffusionTerm(term.Term):
 
         context.get().sim.integrator.add_time_step_limiter(
             tag,
-            context.get().config.get(f'time/limiters/{tag}', float, 0.5),
+            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
             self._diffusion_number
         )
 

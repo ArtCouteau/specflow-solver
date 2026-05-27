@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import torch
 
-from specflow.simulation.solver import Solver
-
+from . import term
+from .. import solver
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
-from . import term
 
 
 class AdvectionTerm(term.Term):
@@ -18,7 +17,7 @@ class AdvectionTerm(term.Term):
 
         context.get().sim.integrator.add_time_step_limiter(
             tag,
-            context.get().config.get(f'time/limiters/{tag}', float, 0.5),
+            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
             self._CFL_number
         )
 
@@ -29,7 +28,7 @@ class AdvectionTerm(term.Term):
             / context.get().mesh.physical_grid_spacing()
         )
 
-    def add_references(self, solver: Solver) -> None:
+    def add_references(self, solver: solver.Solver) -> None:
         # TODO: hardcoded
         self.velocity = solver.equations['Navier-Stokes'].variable
 
