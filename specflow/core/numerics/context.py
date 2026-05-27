@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from specflow.core.physics import dealias
 
-from . import control, io, memory, mesh
-from ...simulation import integration
+from . import io, memory, mesh
+from ...simulation import control, integration
 
 
 class Context:
