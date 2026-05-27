@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import torch
 
 from . import context, dims
@@ -8,7 +6,7 @@ from ..physics import variable
 
 
 def indices_from_range(rank: variable.Rank, lower: float, upper: float) -> torch.Tensor:
-    tmp = mask.spherical(lower, upper)
+    tmp = mask.shell(lower, upper)
     if rank.name == 'SCALAR':
         return tmp.to_sparse().indices()
     elif rank.name == 'VECTOR':
