@@ -1,7 +1,7 @@
 import torch
 
-from ..core.numerics.operations import volume
-from ..core.physics import fields
+from ....core.numerics.operations import volume
+from ....core.physics import fields
 
 
 def _rms_velocity(velocity: torch.Tensor) -> torch.Tensor:
