@@ -11,7 +11,7 @@ Laplacian = Callable[[torch.Tensor], torch.Tensor]
 
 def nabla() -> torch.Tensor:
     return (
-        1.0
+        1.0j
         * context.get().mesh.grid
     ).to(context.get().config.get('numerics/precision/complex', torch.dtype))
 
