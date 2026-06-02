@@ -11,8 +11,9 @@ from ..core.physics import variable
 
 
 class Equation:
-    tag: str
+    projector: projection.Projector
     rank: variable.Rank
+    tag: str
     terms: dict[str, term.Term]
     variable: variable.Variable
 
@@ -26,6 +27,9 @@ class Equation:
             )(self.tag, termTag, self.rank)
             for termTag in context.get().config.get(f'equations/{tag}/terms', dict).keys()
         }
+        self.projector = projection.ProjectorRegistry.get(
+            context.get().config.get(f'equations/{self.tag}/projector', str)
+        )()
         self._init_variable()
 
     def _init_variable(self) -> None:
@@ -57,8 +61,7 @@ class Equation:
         for term in self.terms.values():
             tmp.add_(term.compute(variable, time))
 
-        # TODO: hardcoded
-        return projection.to_divergence_free_plane(tmp)
+        return self.projector.apply(tmp)
 
     def step(self) -> None:
         _ctx = context.get()

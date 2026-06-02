@@ -1,12 +1,12 @@
 from __future__ import annotations
-import math
 
+import math
 import torch
 from typing import Callable, Type
 
 from ..numerics import context
-from specflow.core.numerics.operations import fourier, norm
-from specflow.core.numerics import dims
+from ..numerics.operations import fourier, norm
+from ..numerics import dims
 
 
 class DealiasRegistry:
