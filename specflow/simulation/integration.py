@@ -68,13 +68,13 @@ class TimeIntegrator:
         pass
 
 
-@TimeIntegratorRegistry.register('EF')
+@TimeIntegratorRegistry.register('EulerForward')
 class EulerForward(TimeIntegrator):
     def _compute_time_derivative(self, equation: equation.Equation) -> torch.Tensor:
         return equation.compute_rhs(equation.variable.data, context.get().sim.control.time.current)
 
 
-@TimeIntegratorRegistry.register('RK4')
+@TimeIntegratorRegistry.register('RungeKutta4')
 class RungeKutta4(TimeIntegrator):
     k: dict[str, list[torch.Tensor]]
 
@@ -105,7 +105,7 @@ class RungeKutta4(TimeIntegrator):
         return (k[0] + 2*k[1] + 2*k[2] + k[3]) / 6
 
 
-@TimeIntegratorRegistry.register('RK4LS')
+@TimeIntegratorRegistry.register('RungeKutta4LowStorage')
 class RungeKutta4LowStorage(TimeIntegrator):
     _alpha = [0.0, 0.1496590219993, 0.3704009573644, 0.6222557631345, 0.9582821306748]
     _beta = [0.0, -0.4178904745,   -1.192151694643, -1.697784692471, -1.514183444257]
@@ -135,7 +135,7 @@ class RungeKutta4LowStorage(TimeIntegrator):
             u.add_(self._gamma[i] * self.dt * h)
 
 
-@TimeIntegratorRegistry.register('AB4')
+@TimeIntegratorRegistry.register('AdamsBashforth4')
 class AdamsBashforth4(TimeIntegrator):
     _weights = [
         [1.],
