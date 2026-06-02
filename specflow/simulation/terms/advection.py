@@ -29,8 +29,17 @@ class AdvectionTerm(term.Term):
         )
 
     def add_references(self, solver: solver.Solver) -> None:
-        # TODO: hardcoded
-        self.velocity = solver.equations['Navier-Stokes'].variable
+        _eq = context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/velocity/equation', str)
+        if not _eq in solver.equations.keys():
+            raise KeyError(
+                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" not found'
+            )
+        elif not solver.equations[_eq].rank.name == 'VECTOR':
+            raise ValueError(
+                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" is not a vector equation'
+            )
+        else:
+            self.velocity = solver.equations[_eq].variable
 
 
 @term.TermRegistry.register('advection', 'rotation')
