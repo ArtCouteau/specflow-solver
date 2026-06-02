@@ -49,3 +49,6 @@ class SpectralShells:
 
     def shell(self, index: int) -> torch.Tensor:
         return mask.shell(self.kShell[index].item(), self.kShell[index+1].item())
+
+    def full_shell(self, index: int) -> torch.Tensor:
+        return mask.full_shell(self.kShell[index].item(), self.kShell[index+1].item())
