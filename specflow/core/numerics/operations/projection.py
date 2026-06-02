@@ -31,13 +31,13 @@ class Projector:
     def apply(self, vector: torch.Tensor) -> torch.Tensor: ...
 
 
-@ProjectorRegistry.register('None')
+@ProjectorRegistry.register('none')
 class NoneProjector(Projector):
     def apply(self, vector: torch.Tensor) -> torch.Tensor:
         return vector
 
 
-@ProjectorRegistry.register('DivergenceFree')
+@ProjectorRegistry.register('divergenceFree')
 class DivergenceFreeProjector(Projector):
     def apply(self, vector: torch.Tensor) -> torch.Tensor:
         pressureCorrection = algebra.outer_vector_vector(
