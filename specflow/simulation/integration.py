@@ -146,15 +146,15 @@ class AdamsBashforth4(TimeIntegrator):
         [55/24, -59/24, 37/24, -3/8],
     ]
 
-    _rhs: list[solution.SolutionVariable]
+    k: list[solution.SolutionVariable]
     _step: int
 
     def __init__(self):
         super().__init__()
-        self._rhs = [
+        self.k = [
             solution.SolutionVariable({
                 key: context.get().memory.alloc(
-                    f'AdamsBashforth4/rhs{i}/{key}',
+                    f'AdamsBashforth4/k{i}/{key}',
                     tensor.shape,
                     dtype=tensor.dtype,
                     device=tensor.device,
@@ -165,7 +165,7 @@ class AdamsBashforth4(TimeIntegrator):
         self._step = 0
 
     def _compute_time_derivative(self) -> solution.SolutionVariable:
-        rhs = self._rhs
+        k = self.k
         w = self._weights[min(self._step, 3)]
         t = self.solver.control.time.current
         u = self.solver.variable
@@ -174,11 +174,11 @@ class AdamsBashforth4(TimeIntegrator):
 
         result = w[0] * f_n
         for j, wj in enumerate(w[1:]):
-            result = result + wj * rhs[j]
+            result = result + wj * k[j]
 
         for j in range(min(self._step, 2), 0, -1):
-            rhs[j].copy_(rhs[j - 1])
-        rhs[0].copy_(f_n)
+            k[j].copy_(k[j - 1])
+        k[0].copy_(f_n)
         self._step += 1
 
         return result
