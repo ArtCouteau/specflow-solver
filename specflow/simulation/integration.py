@@ -38,6 +38,12 @@ class TimeIntegrator:
 
     def _compute_time_derivative(self) -> solution.SolutionVariable: ...
 
+    def _compute_rhs(self, variable: solution.SolutionVariable, time: float) -> solution.SolutionVariable:
+        return solution.SolutionVariable({
+            key: self.solver.equations[key].compute_rhs(variable, time)
+            for key in self.solver.equations
+        })
+
     def _get_time_step_target_ratio(self) -> float:
         _ratio = 1.25
         for key, limiter in self.limiters.items():
@@ -68,7 +74,7 @@ class TimeIntegrator:
 @TimeIntegratorRegistry.register('EulerForward')
 class EulerForward(TimeIntegrator):
     def _compute_time_derivative(self) -> solution.SolutionVariable:
-        return self.solver.compute_rhs(self.solver.variable, self.solver.control.time.current)
+        return self._compute_rhs(self.solver.variable, self.solver.control.time.current)
 
 
 @TimeIntegratorRegistry.register('RungeKutta4')
@@ -84,10 +90,10 @@ class RungeKutta4(TimeIntegrator):
         t = self.solver.control.time.current
         u = self.solver.variable
 
-        k[0].copy_(self.solver.compute_rhs(u,                    t))
-        k[1].copy_(self.solver.compute_rhs(u + 0.5*self.dt*k[0], t + 0.5*self.dt))
-        k[2].copy_(self.solver.compute_rhs(u + 0.5*self.dt*k[1], t + 0.5*self.dt))
-        k[3].copy_(self.solver.compute_rhs(u + self.dt*k[2],     t + self.dt))
+        k[0].copy_(self._compute_rhs(u,                    t))
+        k[1].copy_(self._compute_rhs(u + 0.5*self.dt*k[0], t + 0.5*self.dt))
+        k[2].copy_(self._compute_rhs(u + 0.5*self.dt*k[1], t + 0.5*self.dt))
+        k[3].copy_(self._compute_rhs(u + self.dt*k[2],     t + self.dt))
 
         return (k[0] + 2*k[1] + 2*k[2] + k[3]) / 6
 
@@ -116,7 +122,7 @@ class RungeKutta4LowStorage(TimeIntegrator):
         t = self.solver.control.time.current
 
         for i in range(5):
-            h.mul_(self._beta[i]).add_(self.solver.compute_rhs(u, t + self._alpha[i] * self.dt))
+            h.mul_(self._beta[i]).add_(self._compute_rhs(u, t + self._alpha[i] * self.dt))
             u.add_(self._gamma[i] * self.dt * h)
 
 

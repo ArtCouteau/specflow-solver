@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import time
+import torch
 
 from . import control, equation, integration, solution
 from ..core import defs
 from ..core.numerics import context
+from ..core.physics import variable
 
 
 class Solver:
@@ -16,9 +18,22 @@ class Solver:
     def __init__(self):
         context.get().generate_physics_context()
         self.integrator = integration.TimeIntegratorRegistry.get(context.get().config.get('schemes/integration', str))()
-        self.equations = {tag: equation.Equation(self, tag)
-                          for tag in context.get().config.get('equations', dict).keys()}
-        self.variable = solution.SolutionVariable({tag: eq.variable.data for tag, eq in self.equations.items()})
+        self.equations = {
+            key: equation.Equation(self, key)
+            for key in context.get().config.get('equations', dict).keys()
+        }
+
+    def _init_variable(self):
+        self.variable = solution.SolutionVariable({
+            key: context.get().memory.alloc(
+                f'solution/{key}',
+                variable.field_shape(eq.rank),
+                dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
+                device=context.get().config.get('numerics/device', str)
+            ) for key, eq in self.equations.items()
+        })
+
+        self.variable.zero_()
 
     def _step(self):
         self.integrator.advance()
@@ -31,12 +46,6 @@ class Solver:
         context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
         for equation in self.equations.values():
             equation.write_state()
-
-    def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> solution.SolutionVariable:
-        return solution.SolutionVariable({
-            key: self.equations[key].compute_rhs(variable, time)
-            for key in self.equations
-        })
 
     def run(self) -> None:
         print('\n\nStarting time loop\n')
