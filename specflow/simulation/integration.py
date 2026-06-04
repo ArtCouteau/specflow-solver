@@ -41,8 +41,8 @@ class TimeIntegrator:
 
     def _compute_rhs(self, variable: solution.SolutionVariable, time: float) -> solution.SolutionVariable:
         return solution.SolutionVariable({
-            key: self.solver.equations[key].compute_rhs(variable, time)
-            for key in self.solver.equations
+            eq.variable: eq.compute_rhs(variable, time)
+            for eq in self.solver.equations.values()
         })
 
     def _get_time_step_target_ratio(self) -> float:
