@@ -15,11 +15,13 @@ class Equation:
     tag: str
     terms: dict[str, term.Term]
     solver: solver.Solver
+    variable: str
 
     def __init__(self, solver: solver.Solver, tag: str):
         self.solver = solver
         self.tag = tag
         self.rank = variable.Rank[context.get().config.get(f'equations/{self.tag}/rank', str).upper()]
+        self.variable = context.get().config.get(f'equations/{self.tag}/variable', str)
         self.terms = {
             termTag: term.TermRegistry.get(
                 context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str),

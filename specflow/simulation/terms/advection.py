@@ -15,7 +15,7 @@ class AdvectionTerm(term.Term):
 
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
-        self.advectedField = context.get().config.get(f'equations/{equation}/terms/{tag}/variable', str)
+        self.advectedField = self.equation.variable
 
         self.equation.solver.integrator.add_time_step_limiter(
             'CFL',

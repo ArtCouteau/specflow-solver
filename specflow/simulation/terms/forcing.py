@@ -58,5 +58,5 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         return torch.sparse_coo_tensor(  # type: ignore
             self.indices,
             sparse.apply_Hermitian_symmetric_mapping(self.coefficients, self.mapping),
-            size=variable.get('VAR').size(),  # TODO
+            size=variable.get(self.equation.variable).size(),
         ).to_dense()

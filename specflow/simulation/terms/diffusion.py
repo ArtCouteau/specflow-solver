@@ -10,7 +10,6 @@ from ...core.physics import fields, variable
 
 
 class DiffusionTerm(term.Term):
-    variable: str
 
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
@@ -49,7 +48,7 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
         )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.diffusivity * self.laplacian(variable.get(self.variable))  # TODO
+        return self.diffusivity * self.laplacian(variable.get(self.equation.variable))
 
 
 @term.TermRegistry.register('diffusion', 'hyperViscous')
@@ -84,7 +83,7 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
         )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.coefficient * self.laplacian(variable.get(self.variable))**(self.exponent//2)  # TODO
+        return self.coefficient * self.laplacian(variable.get(self.equation.variable))**(self.exponent//2)
 
 
 class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
