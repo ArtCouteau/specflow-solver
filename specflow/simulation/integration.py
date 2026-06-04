@@ -54,6 +54,8 @@ class TimeIntegrator:
 
         return max(0.8, min(1.25, _ratio))
 
+    def setup(self): ...
+
     def add_time_step_limiter(self, tag: str, target: float, func: Callable[[], float]) -> None:
         if not tag in self.limiters.keys():
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
@@ -84,6 +86,8 @@ class RungeKutta4(TimeIntegrator):
 
     def __init__(self, solver: solver.Solver):
         super().__init__(solver)
+
+    def setup(self):
         self.k = [
             solution.SolutionVariable({
                 key: context.get().memory.alloc(
@@ -118,6 +122,8 @@ class RungeKutta4LowStorage(TimeIntegrator):
 
     def __init__(self, solver: solver.Solver):
         super().__init__(solver)
+
+    def setup(self):
         self.h = solution.SolutionVariable({
             key: context.get().memory.alloc(
                 f'RungeKutta4LowStorage/h/{key}',
@@ -152,6 +158,8 @@ class AdamsBashforth4(TimeIntegrator):
 
     def __init__(self, solver: solver.Solver):
         super().__init__(solver)
+
+    def setup(self):
         self.k = [
             solution.SolutionVariable({
                 key: context.get().memory.alloc(

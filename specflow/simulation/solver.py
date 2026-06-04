@@ -19,14 +19,14 @@ class Solver:
 
     def __init__(self):
         context.get().generate_physics_context()
+        self.integrator = integration.TimeIntegratorRegistry.get(
+            context.get().config.get('schemes/integration', str)
+        )(self)
         self.equations = {
             key: equation.Equation(self, key)
             for key in context.get().config.get('equations', dict).keys()
         }
         self._init_variable()
-        self.integrator = integration.TimeIntegratorRegistry.get(
-            context.get().config.get('schemes/integration', str)
-        )(self)
 
     def _init_variable(self):
         self.variable = solution.SolutionVariable({
@@ -37,6 +37,9 @@ class Solver:
                 device=context.get().config.get('numerics/device', str)
             ) for key, eq in self.equations.items()
         })
+
+    def _setup(self):
+        self.integrator.setup()
 
     def _step(self):
         self.integrator.advance()
@@ -66,6 +69,8 @@ class Solver:
 
         print('Clean output directory')
         context.get().io.output.make_or_clean_dir('output')
+
+        self._setup()
 
         print('Running time loop')
         _t0 = time.perf_counter()
