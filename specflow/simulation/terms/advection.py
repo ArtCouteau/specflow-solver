@@ -3,43 +3,28 @@ from __future__ import annotations
 import torch
 
 from . import term
-from .. import solver
+from .. import solution
 from ...core.numerics import context
-from ...core.numerics.operations import algebra, derivative, fourier
+from ...core.numerics.operations import algebra, derivative
 from ...core.physics import fields, variable
 
 
 class AdvectionTerm(term.Term):
-    velocity: variable.Variable
-
     def __init__(self, equation: str, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
-        context.get().sim.integrator.add_time_step_limiter(
-            tag,
-            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
-            self._CFL_number
-        )
+        # context.get().sim.integrator.add_time_step_limiter(
+        #     tag,
+        #     context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
+        #     self._CFL_number
+        # )
 
-    def _CFL_number(self) -> float:
-        return (
-            fourier.to_physical(self.velocity.data).abs().max().item()
-            * context.get().sim.integrator.dt
-            / context.get().mesh.physical_grid_spacing()
-        )
-
-    def add_references(self, solver: solver.Solver) -> None:
-        _eq = context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/velocity/equation', str)
-        if not _eq in solver.equations.keys():
-            raise KeyError(
-                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" not found'
-            )
-        elif not solver.equations[_eq].rank.name == 'VECTOR':
-            raise ValueError(
-                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" is not a vector equation'
-            )
-        else:
-            self.velocity = solver.equations[_eq].variable
+    # def _CFL_number(self) -> float:
+    #     return (
+    #         fourier.to_physical(self.velocity.data).abs().max().item()
+    #         * context.get().sim.integrator.dt
+    #         / context.get().mesh.physical_grid_spacing()
+    #     )
 
 
 @term.TermRegistry.register('advection', 'rotation')
@@ -55,11 +40,11 @@ class RotationFormAdvectionTerm(AdvectionTerm):
     def _physical_space_operation(self, velocity: torch.Tensor, vorticity: torch.Tensor) -> torch.Tensor:
         return - algebra.cross_vector_vector(vorticity, velocity)
 
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return context.get().physics.dealias.apply(
             self._physical_space_operation,
-            variable,
-            fields.spectral.velocity.vorticity(variable)
+            variable.get('velocity'),
+            fields.spectral.velocity.vorticity(variable.get('velocity'))
         )
 
 
@@ -83,9 +68,9 @@ class ConvectionFormAdvectionTerm(AdvectionTerm):
     def _physical_space_operation(self, velocity: torch.Tensor, gradient: torch.Tensor) -> torch.Tensor:
         return self.operation(velocity, gradient)
 
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return context.get().physics.dealias.apply(
             self._physical_space_operation,
-            variable,
-            self.gradient(variable)
+            variable.get('velocity'),
+            self.gradient(variable.get('velocity'))
         )

@@ -4,6 +4,7 @@ import math
 import torch
 
 from . import term
+from .. import solution
 from ...core.numerics import context, sparse
 from ...core.physics import variable
 
@@ -49,7 +50,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
             + self.sigma * math.sqrt(2.0*dt/self.tau) * torch.randn_like(self.coefficients)
         )
 
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         if time > self.previousTime:
             self._update_coefficients(time - self.previousTime)
             self.previousTime = time
@@ -57,5 +58,5 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         return torch.sparse_coo_tensor(  # type: ignore
             self.indices,
             sparse.apply_Hermitian_symmetric_mapping(self.coefficients, self.mapping),
-            size=variable.size(),
+            size=variable.get('VAR').size(),  # TODO
         ).to_dense()

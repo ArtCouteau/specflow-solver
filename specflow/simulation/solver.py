@@ -2,32 +2,42 @@ from __future__ import annotations
 
 import time
 
-from . import equation
+from . import equation, integration, solution
 from ..core.numerics import context
 
 
 class Solver:
+    integrator: integration.TimeIntegrator
     equations: dict[str, equation.Equation]
+    variable: solution.SolutionVariable
 
     def __init__(self):
         context.get().generate_simulation_context()
         context.get().generate_physics_context()
         self.equations = {tag: equation.Equation(tag) for tag in context.get().config.get('equations', dict).keys()}
+        self.variable = solution.SolutionVariable({tag: eq.variable.data for tag, eq in self.equations.items()})
 
     def _setup(self):
-        context.get().sim.integrator.setup(self.equations)
-
-        for equation in self.equations.values():
-            equation.add_references(self)
+        # context.get().sim.integrator.setup(self.equations)
+        pass
 
     def _step(self):
-        for equation in self.equations.values():
-            equation.step()
+        self.integrator.advance()
+
+        for key, tensor in self.variable.data.items():
+            if tensor.isnan().any():
+                raise ValueError(f'NaN values detected in the variable of equation {key}')
 
     def _write_state(self):
         context.get().io.output.make_dir(f'output/{context.get().sim.control.time.timestamp()}')
         for equation in self.equations.values():
             equation.write_state()
+
+    def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> solution.SolutionVariable:
+        return solution.SolutionVariable({
+            key: self.equations[key].compute_rhs(variable, time)
+            for key in self.equations
+        })
 
     def run(self) -> None:
         print('\n\nStarting time loop\n')

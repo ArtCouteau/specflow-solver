@@ -3,13 +3,15 @@ from __future__ import annotations
 import torch
 
 from . import term
-from .. import solver
+from .. import solution
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
 
 class DiffusionTerm(term.Term):
+    variable: str
+
     def __init__(self, equation: str, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
@@ -46,8 +48,8 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
             / context.get().mesh.physical_grid_spacing()**2
         )
 
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
-        return self.diffusivity * self.laplacian(variable)
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+        return self.diffusivity * self.laplacian(variable.get(self.variable))  # TODO
 
 
 @term.TermRegistry.register('diffusion', 'hyperViscous')
@@ -81,8 +83,8 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
             / context.get().mesh.physical_grid_spacing()**(self.exponent)
         )
 
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
-        return self.coefficient * self.laplacian(variable.data)**(self.exponent//2)
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+        return self.coefficient * self.laplacian(variable.get(self.variable))**(self.exponent//2)  # TODO
 
 
 class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
@@ -124,24 +126,11 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
             physicalStrainRateTensor
         )
 
-    def add_references(self, solver: solver.Solver) -> None:
-        _eq = context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/velocity/equation', str)
-        if not _eq in solver.equations.keys():
-            raise KeyError(
-                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" not found'
-            )
-        elif not solver.equations[_eq].rank.name == 'VECTOR':
-            raise ValueError(
-                f'Reference equation for advection term "{self.tag}" of equation "{self.equation}" is not a vector equation'
-            )
-        else:
-            self.velocity = solver.equations[_eq].variable
-
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor:
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return derivative.divergence_tensor(
             context.get().physics.dealias.apply(
                 self._physical_stress_tensor,
-                fields.spectral.velocity.strain_rate_tensor(variable)
+                fields.spectral.velocity.strain_rate_tensor(variable.get('velocity'))
             )
         )
 
