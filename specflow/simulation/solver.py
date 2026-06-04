@@ -46,8 +46,13 @@ class Solver:
 
     def _write_state(self):
         context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
-        for equation in self.equations.values():
-            equation.write_state()
+        for key, tensor in self.variable.data.items():
+            context.get().io.h5.write_tensor(
+                f'output/{self.control.time.timestamp()}/simulation',
+                f'fields/{key}',
+                tensor,
+                {'rank': self.equations[key].rank.name}
+            )
 
     def set_initial_condition(self, equation: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
         if space == 'physical':

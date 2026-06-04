@@ -37,21 +37,3 @@ class Equation:
             tmp.add_(term.compute(variable, time))
 
         return self.projector.apply(tmp)
-
-    def write_state(self) -> None:
-        if context.get().config.get('save/state', bool, True):
-            context.get().io.h5.write_tensor(
-                f'output/{self.solver.control.time.timestamp()}/simulation',
-                f'{self.tag}/fields/{self.variable.tag}',
-                self.variable.data,
-                {'rank': self.rank.name}
-            )
-
-        # if context.get().config.get('save/terms', bool, False):
-        #     for key, term in self.terms.items():
-        #         context.get().io.h5.write_tensor(
-        #             f'output/{context.get().sim.control.time.timestamp()}/simulation',
-        #             f'{self.tag}/fields/terms/{key}',
-        #             term.compute(self.variable.data, context.get().sim.control.time.current),
-        #             {'rank': self.rank.name}
-        #         )
