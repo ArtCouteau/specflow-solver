@@ -51,10 +51,10 @@ class Solver:
 
     def _write_state(self):
         context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
-        for key, eq in self.equations.items():
+        for eq in self.equations.values():
             context.get().io.h5.write_tensor(
                 f'output/{self.control.time.timestamp()}/simulation',
-                f'fields/{key}',
+                f'fields/{eq.variable}',
                 self.variable.get(eq.variable),
                 {'rank': eq.rank.name}
             )
