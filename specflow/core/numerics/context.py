@@ -3,7 +3,7 @@ from __future__ import annotations
 from specflow.core.physics import dealias
 
 from . import io, memory, mesh
-from ...simulation import control, integration
+from ...simulation import control
 
 
 class Context:
@@ -33,11 +33,9 @@ class Context:
 
 class SimulationContext:
     control: control.SimulationControls
-    integrator: integration.TimeIntegrator
 
     def __init__(self, context: Context) -> None:
         self.control = control.SimulationControls()
-        self.integrator = integration.TimeIntegratorRegistry.get(context.config.get('schemes/integration', str))()
 
 
 class PhysicsContext:

@@ -14,6 +14,7 @@ class Solver:
     def __init__(self):
         context.get().generate_simulation_context()
         context.get().generate_physics_context()
+        self.integrator = integration.TimeIntegratorRegistry.get(context.get().config.get('schemes/integration', str))()
         self.equations = {tag: equation.Equation(tag) for tag in context.get().config.get('equations', dict).keys()}
         self.variable = solution.SolutionVariable({tag: eq.variable.data for tag, eq in self.equations.items()})
 
@@ -48,8 +49,8 @@ class Solver:
             print(f'Step {_ctrl.time.step}')
             print(f'Time = {_ctrl.time.current:.5f}')
 
-            context.get().sim.integrator.update()
-            print(f'Time step = {context.get().sim.integrator.dt:.5f}')
+            self.integrator.update()
+            print(f'Time step = {self.integrator.dt:.5f}')
 
             if _ctrl.time.save.active:
                 self._write_state()
