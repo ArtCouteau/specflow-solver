@@ -19,7 +19,9 @@ class Solver:
 
     def __init__(self):
         context.get().generate_physics_context()
-        self.integrator = integration.TimeIntegratorRegistry.get(context.get().config.get('schemes/integration', str))()
+        self.integrator = integration.TimeIntegratorRegistry.get(
+            context.get().config.get('schemes/integration', str)
+        )(self)
         self.equations = {
             key: equation.Equation(self, key)
             for key in context.get().config.get('equations', dict).keys()

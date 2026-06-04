@@ -32,7 +32,8 @@ class TimeIntegrator:
     limiters: dict[str, TimeStepLimiter]
     solver: solver.Solver
 
-    def __init__(self):
+    def __init__(self, solver: solver.Solver):
+        self.solver = solver
         self.dt = context.get().config.get('time/dt', float)
         self.limiters = {}
 
@@ -81,8 +82,8 @@ class EulerForward(TimeIntegrator):
 class RungeKutta4(TimeIntegrator):
     k: list[solution.SolutionVariable]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, solver: solver.Solver):
+        super().__init__(solver)
         self.k = [
             solution.SolutionVariable({
                 key: context.get().memory.alloc(
@@ -115,8 +116,8 @@ class RungeKutta4LowStorage(TimeIntegrator):
     _gamma = [0.1496590219993, 0.3792103129999, 0.8229550293869, 0.6994504559488, 0.1530572479681]
     h: solution.SolutionVariable
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, solver: solver.Solver):
+        super().__init__(solver)
         self.h = solution.SolutionVariable({
             key: context.get().memory.alloc(
                 f'RungeKutta4LowStorage/h/{key}',
@@ -149,8 +150,8 @@ class AdamsBashforth4(TimeIntegrator):
     k: list[solution.SolutionVariable]
     _step: int
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, solver: solver.Solver):
+        super().__init__(solver)
         self.k = [
             solution.SolutionVariable({
                 key: context.get().memory.alloc(
