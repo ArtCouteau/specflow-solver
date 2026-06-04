@@ -51,12 +51,12 @@ class Solver:
 
     def _write_state(self):
         context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
-        for key, tensor in self.variable.data.items():
+        for key, eq in self.equations.items():
             context.get().io.h5.write_tensor(
                 f'output/{self.control.time.timestamp()}/simulation',
                 f'fields/{key}',
-                tensor,
-                {'rank': self.equations[key].rank.name}
+                self.variable.get(eq.variable),
+                {'rank': eq.rank.name}
             )
 
     def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
