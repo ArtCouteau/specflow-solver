@@ -137,47 +137,51 @@ class RungeKutta4LowStorage(TimeIntegrator):
             u.add_(self._gamma[i] * self.dt * h)
 
 
-# @TimeIntegratorRegistry.register('AdamsBashforth4')
-# class AdamsBashforth4(TimeIntegrator):
-#     _weights = [
-#         [1.],
-#         [3/2,   -1/2],
-#         [23/12, -4/3,   5/12],
-#         [55/24, -59/24, 37/24, -3/8],
-#     ]
+@TimeIntegratorRegistry.register('AdamsBashforth4')
+class AdamsBashforth4(TimeIntegrator):
+    _weights = [
+        [1.],
+        [3/2,   -1/2],
+        [23/12, -4/3,   5/12],
+        [55/24, -59/24, 37/24, -3/8],
+    ]
 
-#     _rhs:  dict[str, list[torch.Tensor]]
-#     _step: dict[str, int]
+    _rhs: list[solution.SolutionVariable]
+    _step: int
 
-#     def setup(self, equations: dict[str, equation.Equation]) -> None:
-#         self._rhs = {
-#             tag: [
-#                 context.get().memory.alloc(
-#                     f'AdamsBashforth4/{tag}/rhs{i}',
-#                     eq.variable.data.shape,
-#                     eq.variable.data.dtype,
-#                     eq.variable.data.device
-#                 )
-#                 for i in range(3)
-#             ]
-#             for tag, eq in equations.items()
-#         }
-#         self._step = {tag: 0 for tag in equations}
+    def __init__(self):
+        super().__init__()
+        self._rhs = [
+            solution.SolutionVariable({
+                key: context.get().memory.alloc(
+                    f'AdamsBashforth4/rhs{i}/{key}',
+                    tensor.shape,
+                    dtype=tensor.dtype,
+                    device=tensor.device,
+                ) for key, tensor in self.solver.variable.data.items()
+            })
+            for i in range(3)
+        ]
+        self._step = 0
 
-#     def advance(self, equation: equation.Equation) -> None:
-#         rhs = self._rhs[equation.tag]
-#         step = self._step[equation.tag]
-#         w = self._weights[min(step, 3)]
-#         f_n = equation.compute_rhs(equation.variable.data, context.get().sim.control.time.current)
+    def _compute_time_derivative(self) -> solution.SolutionVariable:
+        rhs = self._rhs
+        w = self._weights[min(self._step, 3)]
+        t = self.solver.control.time.current
+        u = self.solver.variable
 
-#         equation.variable.data.add_(self.dt * w[0] * f_n)
-#         for j, wj in enumerate(w[1:]):
-#             equation.variable.data.add_(self.dt * wj * rhs[j])
+        f_n = self._compute_rhs(u, t)
 
-#         for j in range(min(step, 2), 0, -1):
-#             rhs[j].copy_(rhs[j - 1])
-#         rhs[0].copy_(f_n)
-#         self._step[equation.tag] += 1
+        result = w[0] * f_n
+        for j, wj in enumerate(w[1:]):
+            result = result + wj * rhs[j]
+
+        for j in range(min(self._step, 2), 0, -1):
+            rhs[j].copy_(rhs[j - 1])
+        rhs[0].copy_(f_n)
+        self._step += 1
+
+        return result
 
 
 class TimeStepLimiter(object):
