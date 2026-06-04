@@ -3,7 +3,6 @@ from __future__ import annotations
 from specflow.core.physics import dealias
 
 from . import io, memory, mesh
-from ...simulation import control
 
 
 class Context:
@@ -12,7 +11,6 @@ class Context:
     memory: memory.MemoryManager
     mesh: mesh.Mesh
     physics: PhysicsContext
-    sim: SimulationContext
 
     def __init__(self) -> None:
         self.memory = memory.MemoryManager()
@@ -24,18 +22,8 @@ class Context:
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
 
-    def generate_simulation_context(self) -> None:
-        self.sim = SimulationContext(self)
-
     def generate_physics_context(self) -> None:
         self.physics = PhysicsContext(self)
-
-
-class SimulationContext:
-    control: control.SimulationControls
-
-    def __init__(self, context: Context) -> None:
-        self.control = control.SimulationControls()
 
 
 class PhysicsContext:

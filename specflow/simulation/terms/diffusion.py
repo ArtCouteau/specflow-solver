@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 
 from . import term
-from .. import solution
+from .. import equation, solution
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
@@ -12,14 +12,14 @@ from ...core.physics import fields, variable
 class DiffusionTerm(term.Term):
     variable: str
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
-        context.get().sim.integrator.add_time_step_limiter(
-            tag,
-            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
-            self._diffusion_number
-        )
+        # context.get().sim.integrator.add_time_step_limiter(
+        #     tag,
+        #     context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
+        #     self._diffusion_number
+        # )
 
     def _diffusion_number(self) -> float: ...
 
@@ -29,7 +29,7 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
     diffusivity: float
     laplacian: derivative.Laplacian
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':
@@ -41,12 +41,12 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
 
         self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
 
-    def _diffusion_number(self) -> float:
-        return (
-            self.diffusivity
-            * context.get().sim.integrator.dt
-            / context.get().mesh.physical_grid_spacing()**2
-        )
+    # def _diffusion_number(self) -> float:
+    #     return (
+    #         self.diffusivity
+    #         * context.get().sim.integrator.dt
+    #         / context.get().mesh.physical_grid_spacing()**2
+    #     )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return self.diffusivity * self.laplacian(variable.get(self.variable))  # TODO
@@ -58,7 +58,7 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
     exponent: int
     laplacian: derivative.Laplacian
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':
@@ -76,12 +76,12 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
                 f'"{self.equation}")'
             )
 
-    def _diffusion_number(self) -> float:
-        return (
-            self.coefficient
-            * context.get().sim.integrator.dt
-            / context.get().mesh.physical_grid_spacing()**(self.exponent)
-        )
+    # def _diffusion_number(self) -> float:
+    #     return (
+    #         self.coefficient
+    #         * context.get().sim.integrator.dt
+    #         / context.get().mesh.physical_grid_spacing()**(self.exponent)
+    #     )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return self.coefficient * self.laplacian(variable.get(self.variable))**(self.exponent//2)  # TODO
@@ -90,7 +90,7 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
 class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
     velocity: variable.Variable
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':
@@ -102,14 +102,14 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
 
         self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
 
-    def _diffusion_number(self) -> float:
-        return (
-            self._physical_viscosity(
-                fields.physical.velocity.strain_rate_tensor(self.velocity.data)
-            ).max().item()
-            * context.get().sim.integrator.dt
-            / context.get().mesh.physical_grid_spacing()**2
-        )
+    # def _diffusion_number(self) -> float:
+    #     return (
+    #         self._physical_viscosity(
+    #             fields.physical.velocity.strain_rate_tensor(self.velocity.data)
+    #         ).max().item()
+    #         * context.get().sim.integrator.dt
+    #         / context.get().mesh.physical_grid_spacing()**2
+    #     )
 
     def _get_viscosity(self, velocity: torch.Tensor) -> torch.Tensor:
         return fourier.to_spectral(
@@ -140,7 +140,7 @@ class GeneralizedNewtonianPowerLawDiffusionTerm(GeneralizedNewtonianDiffusionTer
     baseCoefficient: float
     powerLawExponent: float
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
         self.baseCoefficient = context.get().config.get(f'equations/{equation}/terms/{tag}/baseCoefficient', float)
         self.powerLawExponent = context.get().config.get(f'equations/{equation}/terms/{tag}/powerLawExponent', float)
@@ -158,7 +158,7 @@ class GeneralizedNewtonianCarreauDiffusionTerm(GeneralizedNewtonianDiffusionTerm
     consistencyIndex: float
     powerIndex: float
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
         self.lowerLimit = context.get().config.get(f'equations/{equation}/terms/{tag}/lowerLimit', float)
         self.upperLimit = context.get().config.get(f'equations/{equation}/terms/{tag}/upperLimit', float)

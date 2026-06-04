@@ -3,14 +3,14 @@ from __future__ import annotations
 import torch
 
 from . import term
-from .. import solution
+from .. import equation, solution
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative
 from ...core.physics import fields, variable
 
 
 class AdvectionTerm(term.Term):
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         # context.get().sim.integrator.add_time_step_limiter(
@@ -29,7 +29,7 @@ class AdvectionTerm(term.Term):
 
 @term.TermRegistry.register('advection', 'rotation')
 class RotationFormAdvectionTerm(AdvectionTerm):
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         if not self.rank.name == 'VECTOR':
@@ -53,7 +53,7 @@ class ConvectionFormAdvectionTerm(AdvectionTerm):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
 
         if self.rank.name == 'SCALAR':

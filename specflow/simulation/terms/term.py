@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from typing import Type
 
-from .. import solution
+from .. import equation, solution
 from ...core.physics import variable
 
 
@@ -35,11 +35,11 @@ class TermRegistry:
 
 
 class Term:
-    equation: str
+    equation: equation.Equation
     tag: str
     rank: variable.Rank
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         self.equation = equation
         self.tag = tag
         self.rank = rank

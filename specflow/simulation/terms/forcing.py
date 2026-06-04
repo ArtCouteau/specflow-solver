@@ -4,7 +4,7 @@ import math
 import torch
 
 from . import term
-from .. import solution
+from .. import equation, solution
 from ...core.numerics import context, sparse
 from ...core.physics import variable
 
@@ -17,7 +17,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
     mapping: torch.Tensor
     coefficients: torch.Tensor
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
+    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
         self.sigma = context.get().config.get(f'equations/{equation}/terms/{tag}/sigma', float)
         self.tau = context.get().config.get(f'equations/{equation}/terms/{tag}/tau', float)
@@ -29,12 +29,12 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         self.mapping = sparse.compute_Hermitian_symmetric_mapping(self.indices)
         self.coefficients = self._init_coefficients().to(device=context.get().config.get('numerics/device', str))
 
-        self.previousTime = context.get().sim.control.time.current
+        self.previousTime = self.equation.solver.control.time.current
 
     def _init_coefficients(self) -> torch.Tensor:
         if context.get().config.get('time/restart', bool):
             return context.get().io.h5.read_tensor(
-                f'output/{context.get().sim.control.time.timestamp()}/simulation',
+                f'output/{self.equation.solver.control.time.timestamp()}/simulation',
                 f'{self.tag}/coefficients',
                 device=context.get().config.get('numerics/device', str)
             )

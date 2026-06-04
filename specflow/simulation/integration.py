@@ -68,7 +68,7 @@ class TimeIntegrator:
 @TimeIntegratorRegistry.register('EulerForward')
 class EulerForward(TimeIntegrator):
     def _compute_time_derivative(self) -> solution.SolutionVariable:
-        return self.solver.compute_rhs(self.solver.variable, context.get().sim.control.time.current)
+        return self.solver.compute_rhs(self.solver.variable, self.solver.control.time.current)
 
 
 @TimeIntegratorRegistry.register('RungeKutta4')
@@ -81,7 +81,7 @@ class RungeKutta4(TimeIntegrator):
 
     def _compute_time_derivative(self) -> solution.SolutionVariable:
         k = self.k
-        t = context.get().sim.control.time.current
+        t = self.solver.control.time.current
         u = self.solver.variable
 
         k[0].copy_(self.solver.compute_rhs(u,                    t))
@@ -113,7 +113,7 @@ class RungeKutta4LowStorage(TimeIntegrator):
         h = self.h
         h.zero_()
         u = self.solver.variable
-        t = context.get().sim.control.time.current
+        t = self.solver.control.time.current
 
         for i in range(5):
             h.mul_(self._beta[i]).add_(self.solver.compute_rhs(u, t + self._alpha[i] * self.dt))
