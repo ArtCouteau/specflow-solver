@@ -35,8 +35,6 @@ class Solver:
             ) for key, eq in self.equations.items()
         })
 
-        self.variable.zero_()
-
     def _step(self):
         self.integrator.advance()
 

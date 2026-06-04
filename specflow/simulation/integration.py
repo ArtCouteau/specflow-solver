@@ -83,7 +83,17 @@ class RungeKutta4(TimeIntegrator):
 
     def __init__(self):
         super().__init__()
-        self.k = [solution.zeros_like(self.solver.variable) for _ in range(4)]
+        self.k = [
+            solution.SolutionVariable({
+                key: context.get().memory.alloc(
+                    f'RungeKutta4/k{i}/{key}',
+                    tensor.shape,
+                    dtype=tensor.dtype,
+                    device=tensor.device,
+                ) for key, tensor in self.solver.variable.data.items()
+            })
+            for i in range(4)
+        ]
 
     def _compute_time_derivative(self) -> solution.SolutionVariable:
         k = self.k
@@ -107,13 +117,14 @@ class RungeKutta4LowStorage(TimeIntegrator):
 
     def __init__(self):
         super().__init__()
-        # self.h = context.get().memory.alloc(
-        #     f'RungeKutta4LowStorage/h',
-        #     self.solver.state.tensor.shape,
-        #     self.solver.state.tensor.dtype,
-        #     self.solver.state.tensor.device
-        # )
-        self.h = solution.zeros_like(self.solver.variable)
+        self.h = solution.SolutionVariable({
+            key: context.get().memory.alloc(
+                f'RungeKutta4LowStorage/h/{key}',
+                tensor.shape,
+                dtype=tensor.dtype,
+                device=tensor.device,
+            ) for key, tensor in self.solver.variable.data.items()
+        })
 
     def advance(self) -> None:
         h = self.h

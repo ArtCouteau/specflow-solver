@@ -8,6 +8,7 @@ class SolutionVariable:
 
     def __init__(self, data: dict[str, torch.Tensor]):
         self.data = data
+        self.zero_()
 
     def get(self, key: str) -> torch.Tensor:
         return self.data[key]
@@ -43,7 +44,3 @@ class SolutionVariable:
 
     def __truediv__(self, scalar: int | float) -> SolutionVariable:
         return SolutionVariable({k: v / scalar for k, v in self.data.items()})
-
-
-def zeros_like(variable: SolutionVariable) -> SolutionVariable:
-    return SolutionVariable({k: torch.zeros_like(v) for k, v in variable.data.items()})
