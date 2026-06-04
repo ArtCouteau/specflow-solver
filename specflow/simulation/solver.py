@@ -31,12 +31,12 @@ class Solver:
 
     def _init_variable(self):
         self.variable = solution.SolutionVariable({
-            key: context.get().memory.alloc(
-                f'solution/{key}',
+            eq.variable: context.get().memory.alloc(
+                f'solution/{eq.variable}',
                 variable.field_shape(eq.rank),
                 dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
                 device=context.get().config.get('numerics/device', str)
-            ) for key, eq in self.equations.items()
+            ) for eq in self.equations.values()
         })
 
     def _setup(self):
