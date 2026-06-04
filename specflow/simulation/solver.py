@@ -17,10 +17,6 @@ class Solver:
         self.equations = {tag: equation.Equation(tag) for tag in context.get().config.get('equations', dict).keys()}
         self.variable = solution.SolutionVariable({tag: eq.variable.data for tag, eq in self.equations.items()})
 
-    def _setup(self):
-        # context.get().sim.integrator.setup(self.equations)
-        pass
-
     def _step(self):
         self.integrator.advance()
 
@@ -44,9 +40,6 @@ class Solver:
 
         print('Clean output directory')
         context.get().io.output.make_or_clean_dir('output')
-
-        print('Setup simulation')
-        self._setup()
 
         print('Running time loop')
         _t0 = time.perf_counter()
