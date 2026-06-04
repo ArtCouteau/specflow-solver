@@ -26,6 +26,7 @@ class Solver:
             key: equation.Equation(self, key)
             for key in context.get().config.get('equations', dict).keys()
         }
+        self._init_variable()
 
     def _init_variable(self):
         self.variable = solution.SolutionVariable({
