@@ -16,7 +16,7 @@ class DiffusionTerm(term.Term):
 
         self.equation.solver.integrator.add_time_step_limiter(
             f'Diffusion/{tag}',
-            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
+            context.get().config.get(f'equations/{equation.tag}/terms/{tag}/limiter', float, 0.5),
             self._diffusion_number
         )
 
@@ -38,7 +38,7 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
+        self.diffusivity = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/diffusivity', float)
 
     def _diffusion_number(self) -> float:
         return (
@@ -67,8 +67,8 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.coefficient = context.get().config.get(f'equations/{equation}/terms/{tag}/coefficient', float)
-        self.exponent = context.get().config.get(f'equations/{equation}/terms/{tag}/exponent', int)
+        self.coefficient = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/coefficient', float)
+        self.exponent = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/exponent', int)
         if not (self.exponent > 0 and self.exponent.bit_count() == 1):
             raise ValueError(
                 f'Hyper viscous terms only accept power of two exponents (term "{self.tag}" of equation'
@@ -99,7 +99,7 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = context.get().config.get(f'equations/{equation}/terms/{tag}/diffusivity', float)
+        self.diffusivity = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/diffusivity', float)
 
     def _diffusion_number(self) -> float:
         return (
@@ -141,8 +141,9 @@ class GeneralizedNewtonianPowerLawDiffusionTerm(GeneralizedNewtonianDiffusionTer
 
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
-        self.baseCoefficient = context.get().config.get(f'equations/{equation}/terms/{tag}/baseCoefficient', float)
-        self.powerLawExponent = context.get().config.get(f'equations/{equation}/terms/{tag}/powerLawExponent', float)
+        self.baseCoefficient = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/baseCoefficient', float)
+        self.powerLawExponent = context.get().config.get(
+            f'equations/{equation.tag}/terms/{tag}/powerLawExponent', float)
 
     def _physical_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
         return self.baseCoefficient*(
@@ -159,10 +160,11 @@ class GeneralizedNewtonianCarreauDiffusionTerm(GeneralizedNewtonianDiffusionTerm
 
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
-        self.lowerLimit = context.get().config.get(f'equations/{equation}/terms/{tag}/lowerLimit', float)
-        self.upperLimit = context.get().config.get(f'equations/{equation}/terms/{tag}/upperLimit', float)
-        self.consistencyIndex = context.get().config.get(f'equations/{equation}/terms/{tag}/consistencyIndex', float)
-        self.powerIndex = context.get().config.get(f'equations/{equation}/terms/{tag}/powerIndex', float)
+        self.lowerLimit = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/lowerLimit', float)
+        self.upperLimit = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/upperLimit', float)
+        self.consistencyIndex = context.get().config.get(
+            f'equations/{equation.tag}/terms/{tag}/consistencyIndex', float)
+        self.powerIndex = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/powerIndex', float)
 
     def _physical_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
         return (

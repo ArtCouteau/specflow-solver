@@ -19,7 +19,7 @@ class AdvectionTerm(term.Term):
 
         self.equation.solver.integrator.add_time_step_limiter(
             'CFL',
-            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
+            context.get().config.get(f'equations/{equation.tag}/terms/{tag}/limiter', float, 0.5),
             self._CFL_number
         )
 

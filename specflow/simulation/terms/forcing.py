@@ -19,10 +19,10 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
 
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
-        self.sigma = context.get().config.get(f'equations/{equation}/terms/{tag}/sigma', float)
-        self.tau = context.get().config.get(f'equations/{equation}/terms/{tag}/tau', float)
+        self.sigma = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/sigma', float)
+        self.tau = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/tau', float)
 
-        _range = tuple(context.get().config.get(f'equations/{equation}/terms/{tag}/range', list))
+        _range = tuple(context.get().config.get(f'equations/{equation.tag}/terms/{tag}/range', list))
         self.indices = sparse.indices_from_range(rank, _range[0], _range[1]).to(
             device=context.get().config.get('numerics/device', str)
         )
