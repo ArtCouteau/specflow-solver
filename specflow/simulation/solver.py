@@ -59,11 +59,11 @@ class Solver:
                 {'rank': self.equations[key].rank.name}
             )
 
-    def set_initial_condition(self, equation: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
+    def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
         if space == 'physical':
-            self.variable.get(equation).copy_(fourier.to_spectral(data))
+            self.variable.get(variable).copy_(fourier.to_spectral(data))
         else:
-            self.variable.get(equation).copy_(data)
+            self.variable.get(variable).copy_(data)
 
     def run(self) -> None:
         print('\n\nStarting time loop\n')
