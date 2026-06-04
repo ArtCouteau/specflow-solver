@@ -57,7 +57,7 @@ class TimeIntegrator:
         if not tag in self.limiters.keys():
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
         else:
-            raise KeyError(f'Time step limiter for "{tag}" already exists.')
+            print(f'Time step limiter for "{tag}" already exists. Skipping')
 
         print(f'Added time step limiter "{tag}" (target = {target:.2f})')
 

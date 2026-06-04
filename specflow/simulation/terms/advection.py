@@ -5,26 +5,30 @@ import torch
 from . import term
 from .. import equation, solution
 from ...core.numerics import context
-from ...core.numerics.operations import algebra, derivative
+from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
 
 class AdvectionTerm(term.Term):
+    advectingField: str = 'velocity'
+    advectedField: str
+
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
+        self.advectedField = context.get().config.get(f'equations/{equation}/terms/{tag}/variable', str)
 
-        # context.get().sim.integrator.add_time_step_limiter(
-        #     tag,
-        #     context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
-        #     self._CFL_number
-        # )
+        self.equation.solver.integrator.add_time_step_limiter(
+            'CFL',
+            context.get().config.get(f'equations/{equation}/terms/{tag}/limiter', float, 0.5),
+            self._CFL_number
+        )
 
-    # def _CFL_number(self) -> float:
-    #     return (
-    #         fourier.to_physical(self.velocity.data).abs().max().item()
-    #         * context.get().sim.integrator.dt
-    #         / context.get().mesh.physical_grid_spacing()
-    #     )
+    def _CFL_number(self) -> float:
+        return (
+            fourier.to_physical(self.equation.solver.variable.get(self.advectingField)).abs().max().item()
+            * self.equation.solver.integrator.dt
+            / context.get().mesh.physical_grid_spacing()
+        )
 
 
 @term.TermRegistry.register('advection', 'rotation')
@@ -43,8 +47,8 @@ class RotationFormAdvectionTerm(AdvectionTerm):
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return context.get().physics.dealias.apply(
             self._physical_space_operation,
-            variable.get('velocity'),
-            fields.spectral.velocity.vorticity(variable.get('velocity'))
+            variable.get(self.advectingField),
+            fields.spectral.velocity.vorticity(variable.get(self.advectedField))
         )
 
 
@@ -71,6 +75,6 @@ class ConvectionFormAdvectionTerm(AdvectionTerm):
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return context.get().physics.dealias.apply(
             self._physical_space_operation,
-            variable.get('velocity'),
-            self.gradient(variable.get('velocity'))
+            variable.get(self.advectingField),
+            self.gradient(variable.get(self.advectedField))
         )
