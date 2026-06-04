@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import torch
-from typing import Literal
 
 from . import solution, solver
 from .terms import term
 from ..core.numerics import context
-from ..core.numerics.operations import fourier, projection, rank
+from ..core.numerics.operations import projection, rank
 from ..core.physics import variable
 
 
@@ -15,7 +14,6 @@ class Equation:
     rank: variable.Rank
     tag: str
     terms: dict[str, term.Term]
-    variable: variable.Variable
     solver: solver.Solver
 
     def __init__(self, solver: solver.Solver, tag: str):
@@ -32,27 +30,6 @@ class Equation:
         self.projector = projection.ProjectorRegistry.get(
             context.get().config.get(f'equations/{self.tag}/projector', str)
         )()
-        self._init_variable()
-
-    def _init_variable(self) -> None:
-        self.variable = variable.Variable(
-            tag=context.get().config.get(f'equations/{self.tag}/variable', str),
-            rank=self.rank,
-            data=context.get().memory.alloc(
-                f'{self.tag}/variable',
-                variable.field_shape(self.rank),
-                dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
-                device=context.get().config.get('numerics/device', str)
-            )
-        )
-
-        self.variable.data.zero_()
-
-    def set_initial_condition(self, data: torch.Tensor, space: Literal['physical', 'spectral']):
-        if space == 'physical':
-            self.variable.data.copy_(fourier.to_spectral(data))
-        else:
-            self.variable.data.copy_(data)
 
     def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         tmp = rank.zeros(self.rank)
