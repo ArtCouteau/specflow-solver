@@ -99,6 +99,7 @@ class RungeKutta4(TimeIntegrator):
             })
             for i in range(4)
         ]
+        [self.k[i].zero_() for i in range(4)]
 
     def _compute_time_derivative(self) -> solution.SolutionVariable:
         k = self.k
@@ -132,6 +133,7 @@ class RungeKutta4LowStorage(TimeIntegrator):
                 device=tensor.device,
             ) for key, tensor in self.solver.variable.data.items()
         })
+        self.h.zero_()
 
     def advance(self) -> None:
         h = self.h

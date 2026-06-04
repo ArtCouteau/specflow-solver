@@ -8,7 +8,6 @@ class SolutionVariable:
 
     def __init__(self, data: dict[str, torch.Tensor]):
         self.data = data
-        self.zero_()
 
     def get(self, key: str) -> torch.Tensor:
         return self.data[key]

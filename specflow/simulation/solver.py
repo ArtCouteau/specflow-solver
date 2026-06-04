@@ -38,6 +38,7 @@ class Solver:
                 device=context.get().config.get('numerics/device', str)
             ) for eq in self.equations.values()
         })
+        self.variable.zero_()
 
     def _setup(self):
         self.integrator.setup()
