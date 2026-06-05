@@ -25,7 +25,7 @@ class Solver:
         )(self)
         self.equations = {
             key: equation.EquationRegistry.get(
-                context.get().config.get(f'equations/{key}/kind', str, 'custom')
+                context.get().config.get(f'equations/{key}/prebuild', str, 'custom')
             )(self, key)
             for key in context.get().config.get('equations', dict).keys()
         }
