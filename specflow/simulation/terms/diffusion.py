@@ -71,7 +71,7 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
         self.exponent = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/exponent', int)
         if not (self.exponent > 0 and self.exponent.bit_count() == 1):
             raise ValueError(
-                f'Hyper viscous terms only accept power of two exponents (term "{self.tag}" of equation'
+                f'Hyper viscous terms only accept power of two exponents (term "{self.tag}" of equation '
                 f'"{self.equation}")'
             )
 

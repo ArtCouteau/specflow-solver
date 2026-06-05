@@ -60,7 +60,7 @@ class H5Interface(object):
                 np.array(self._read_dataset(h5file, tag))
             ).to(device=device)
 
-    def write_tensor(self, path: str, tag: str, data: torch.Tensor, meta: dict[str, Any] = {}):
+    def write_tensor(self, path: str, tag: str, data: torch.Tensor, meta: dict[str, Any] | None = None):
         with self._open_write(path) as h5file:
             _tag = tag.split('/')
             _grp = self._require_group_recursive(h5file, *_tag[:-1])
@@ -76,7 +76,8 @@ class H5Interface(object):
                 except ValueError:
                     del _grp[_tag[-1]]
                     _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-            _dset.attrs.update(meta)  # type: ignore
+            if meta is not None:
+                _dset.attrs.update(meta)  # type: ignore
 
     def read_group_keys(self, path: str, tag: str) -> list[str]:
         with self._open_read(path) as h5file:

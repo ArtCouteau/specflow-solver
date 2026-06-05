@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from specflow.core.physics import dealias
+from ..physics import dealias
 
 from . import io, memory, mesh
 

@@ -92,6 +92,6 @@ class Solver:
             self.control.time.update()
 
         _t1 = time.perf_counter()
-        print(f'Simulation has succefully finished')
+        print(f'Simulation has successfully finished')
         print(f'Elapsed time: {(_t1 - _t0)/3600:.2f} hours')
         print(f'Average time step duration: {(_t1 - _t0)/self.control.time.step:.3f} seconds')

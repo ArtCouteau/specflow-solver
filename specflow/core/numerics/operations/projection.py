@@ -19,7 +19,7 @@ class ProjectorRegistry:
 
     @classmethod
     def get(cls, name: str) -> Type[Projector]:
-        if not name in cls._registry:
+        if name not in cls._registry:
             raise KeyError(
                 f'Projector \'{name}\' not found, available:\n'
                 + '\n'.join(f"- {k}" for k in cls._registry.keys())

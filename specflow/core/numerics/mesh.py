@@ -63,7 +63,7 @@ def construct_physical_grid() -> torch.Tensor:
     L: float = context.get().config.get('grid/length', float)
     N: int = context.get().config.get('grid/N', int)
 
-    tmp = L/N*torch.torch.arange(0, N)
+    tmp = L/N*torch.arange(0, N)
 
     return _construct_grid(tmp, tmp).to(
         dtype=context.get().config.get('numerics/precision/float', torch.dtype),

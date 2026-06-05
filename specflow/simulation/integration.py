@@ -57,7 +57,7 @@ class TimeIntegrator:
     def setup(self): ...
 
     def add_time_step_limiter(self, tag: str, target: float, func: Callable[[], float]) -> None:
-        if not tag in self.limiters.keys():
+        if tag not in self.limiters:
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
         else:
             print(f'Time step limiter for "{tag}" already exists. Skipping')
