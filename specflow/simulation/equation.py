@@ -54,3 +54,8 @@ class NavierStokesEquation(Equation):
 
     def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return self.projector.apply(super().compute_rhs(variable, time))
+
+
+@EquationRegistry.register('custom')
+class CustomEquation(Equation):
+    pass
