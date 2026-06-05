@@ -24,7 +24,9 @@ class Solver:
             context.get().config.get('schemes/integration', str)
         )(self)
         self.equations = {
-            key: equation.Equation(self, key)
+            key: equation.EquationRegistry.get(
+                context.get().config.get(f'equations/{key}/kind', str)
+            )(self, key)
             for key in context.get().config.get('equations', dict).keys()
         }
         self._init_variable()
