@@ -31,7 +31,7 @@ class AdvectionTerm(term.Term):
         )
 
 
-@term.TermRegistry.register('advection', 'rotation')
+@term.TermRegistry.register('advection/rotation')
 class RotationFormAdvectionTerm(AdvectionTerm):
     def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
         super().__init__(equation, tag, rank)
@@ -52,7 +52,7 @@ class RotationFormAdvectionTerm(AdvectionTerm):
         )
 
 
-@term.TermRegistry.register('advection', 'convection')
+@term.TermRegistry.register('advection/convection')
 class ConvectionFormAdvectionTerm(AdvectionTerm):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation

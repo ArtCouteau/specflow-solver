@@ -2,31 +2,12 @@ from __future__ import annotations
 
 import math
 import torch
-from typing import Callable, Type
+from typing import Callable
 
 from ..numerics import context
 from ..numerics.operations import fourier, norm
 from ..numerics import dims
-
-
-class DealiasRegistry:
-    _registry: dict[str, Type[Dealias]] = {}
-
-    @classmethod
-    def register(cls, name: str):
-        def decorator(dealiasing: Type[Dealias]) -> Type[Dealias]:
-            cls._registry[name] = dealiasing
-            return dealiasing
-        return decorator
-
-    @classmethod
-    def get(cls, name: str) -> Type[Dealias]:
-        if name not in cls._registry:
-            raise KeyError(
-                f'Dealias \'{name}\' not found, available:\n'
-                + '\n'.join(f"- {k}" for k in cls._registry.keys())
-            )
-        return cls._registry[name]
+from ..registry import Registry
 
 
 class Dealias:
@@ -42,6 +23,10 @@ class Dealias:
         return transform_forward(function(*(transform_backward(d) for d in data)))
 
     def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor: ...
+
+
+class DealiasRegistry(Registry[Dealias]):
+    pass
 
 
 @DealiasRegistry.register('smoothing')

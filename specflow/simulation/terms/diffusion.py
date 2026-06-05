@@ -23,7 +23,7 @@ class DiffusionTerm(term.Term):
     def _diffusion_number(self) -> float: ...
 
 
-@term.TermRegistry.register('diffusion', 'constant')
+@term.TermRegistry.register('diffusion/constant')
 class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
     diffusivity: float
     laplacian: derivative.Laplacian
@@ -51,7 +51,7 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
         return self.diffusivity * self.laplacian(variable.get(self.equation.variable))
 
 
-@term.TermRegistry.register('diffusion', 'hyperViscous')
+@term.TermRegistry.register('diffusion/hyperViscous')
 class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
     coefficient: float
     exponent: int
@@ -134,7 +134,7 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
         )
 
 
-@term.TermRegistry.register('diffusion', 'generalizedNewtonianPowerLaw')
+@term.TermRegistry.register('diffusion/generalizedNewtonianPowerLaw')
 class GeneralizedNewtonianPowerLawDiffusionTerm(GeneralizedNewtonianDiffusionTerm):
     baseCoefficient: float
     powerLawExponent: float
@@ -151,7 +151,7 @@ class GeneralizedNewtonianPowerLawDiffusionTerm(GeneralizedNewtonianDiffusionTer
         )
 
 
-@term.TermRegistry.register('diffusion', 'generalizedNewtonianCarreau')
+@term.TermRegistry.register('diffusion/generalizedNewtonianCarreau')
 class GeneralizedNewtonianCarreauDiffusionTerm(GeneralizedNewtonianDiffusionTerm):
     lowerLimit: float
     upperLimit: float

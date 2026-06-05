@@ -24,8 +24,8 @@ class Equation:
         self.variable = context.get().config.get(f'equations/{self.tag}/variable', str)
         self.terms = {
             termTag: term.TermRegistry.get(
-                context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str),
-                context.get().config.get(f'equations/{tag}/terms/{termTag}/model', str)
+                f"{context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str)}"
+                f"/{context.get().config.get(f'equations/{tag}/terms/{termTag}/model', str)}"
             )(self, termTag, self.rank)
             for termTag in context.get().config.get(f'equations/{tag}/terms', dict).keys()
         }

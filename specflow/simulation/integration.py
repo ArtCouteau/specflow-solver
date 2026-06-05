@@ -1,30 +1,11 @@
 from __future__ import annotations
 
-from typing import Callable, Type
+from typing import Callable
 
 from . import solution, solver
 from ..core import defs
 from ..core.numerics import context
-
-
-class TimeIntegratorRegistry:
-    _registry: dict[str, Type[TimeIntegrator]] = {}
-
-    @classmethod
-    def register(cls, name: str):
-        def decorator(integrator_class: Type[TimeIntegrator]) -> Type[TimeIntegrator]:
-            cls._registry[name] = integrator_class
-            return integrator_class
-        return decorator
-
-    @classmethod
-    def get(cls, name: str) -> Type[TimeIntegrator]:
-        if name not in cls._registry:
-            raise ValueError(
-                f'Time integration model {name} not found, available models:\n'
-                + '\n'.join(f"- {k}" for k in cls._registry.keys())
-            )
-        return cls._registry[name]
+from ..core.registry import Registry
 
 
 class TimeIntegrator:
@@ -72,6 +53,10 @@ class TimeIntegrator:
 
     def advance(self) -> None:
         self.solver.variable.add_(self.dt * self._compute_time_derivative())
+
+
+class TimeIntegratorRegistry(Registry[TimeIntegrator]):
+    pass
 
 
 @TimeIntegratorRegistry.register('EulerForward')

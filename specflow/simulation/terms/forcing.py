@@ -9,7 +9,7 @@ from ...core.numerics import context, sparse
 from ...core.physics import variable
 
 
-@term.TermRegistry.register('forcing', 'OrnsteinUhlenbeck')
+@term.TermRegistry.register('forcing/OrnsteinUhlenbeck')
 class OrnsteinUhlenbeckForcingTerm(term.Term):
     sigma: float
     tau: float
