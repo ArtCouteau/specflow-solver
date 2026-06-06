@@ -100,21 +100,23 @@ class Solver:
         self._setup()
 
         print('Running time loop')
+        self._write_state()
+
         _t0 = time.perf_counter()
         while self.control.time.advance():
             print(f'Step {self.control.time.step}')
             print(f'Time = {context.get().io.output.timestamp(self.control.time.current)}')
 
             self.integrator.update(self.variable)
+            self.control.time.clamp_dt()
             print(f'Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')
+
+            self._step()
+            self.control.time.update()
 
             if self.control.time.save.active:
                 self._write_state()
                 self.control.time.save.deactivate()
-
-            self._step()
-
-            self.control.time.update()
 
         _t1 = time.perf_counter()
         print(f'Simulation has successfully finished')
