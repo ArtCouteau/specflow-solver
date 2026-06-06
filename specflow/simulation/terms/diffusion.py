@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import torch
+from typing import Callable
 
 from . import term
-from .. import equation, solution
+from .. import solution
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
@@ -11,16 +12,17 @@ from ...core.physics import fields, variable
 
 class DiffusionTerm(term.Term):
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
-        self.equation.solver.integrator.add_time_step_limiter(
-            f'Diffusion/{tag}',
-            context.get().config.get(f'equations/{equation.tag}/terms/{tag}/limiter', float, 0.5),
+    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
+        return (
+            f'Diffusion/{self.tag}',
+            context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
             self._diffusion_number
         )
 
-    def _diffusion_number(self) -> float: ...
+    def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float: ...
 
 
 @term.TermRegistry.register('diffusion/constant')
@@ -28,8 +30,8 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
     diffusivity: float
     laplacian: derivative.Laplacian
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
         if self.rank.name == 'SCALAR':
             self.laplacian = derivative.laplacian_scalar
@@ -38,17 +40,17 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/diffusivity', float)
+        self.diffusivity = context.get().config.get(f'equations/{self.equation}/terms/{tag}/diffusivity', float)
 
-    def _diffusion_number(self) -> float:
+    def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
             self.diffusivity
-            * self.equation.solver.integrator.dt
+            * dt
             / context.get().mesh.physical_grid_spacing()**2
         )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.diffusivity * self.laplacian(variable.get(self.equation.variable))
+        return self.diffusivity * self.laplacian(variable.get(self.variable))
 
 
 @term.TermRegistry.register('diffusion/hyperViscous')
@@ -57,8 +59,8 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
     exponent: int
     laplacian: derivative.Laplacian
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
         if self.rank.name == 'SCALAR':
             self.laplacian = derivative.laplacian_scalar
@@ -67,30 +69,28 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.coefficient = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/coefficient', float)
-        self.exponent = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/exponent', int)
+        self.coefficient = context.get().config.get(f'equations/{self.equation}/terms/{tag}/coefficient', float)
+        self.exponent = context.get().config.get(f'equations/{self.equation}/terms/{tag}/exponent', int)
         if not (self.exponent > 0 and self.exponent.bit_count() == 1):
             raise ValueError(
                 f'Hyper viscous terms only accept power of two exponents (term "{self.tag}" of equation '
                 f'"{self.equation}")'
             )
 
-    def _diffusion_number(self) -> float:
+    def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
             self.coefficient
-            * self.equation.solver.integrator.dt
-            / context.get().mesh.physical_grid_spacing()**(self.exponent)
+            * dt
+            / context.get().mesh.physical_grid_spacing()**(2.0*self.exponent)
         )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.coefficient * self.laplacian(variable.get(self.equation.variable))**(self.exponent//2)
+        return self.coefficient * self.laplacian(variable.get(self.variable))**(self.exponent//2)
 
 
 class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
-    velocity: variable.Variable
-
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
         if self.rank.name == 'SCALAR':
             self.laplacian = derivative.laplacian_scalar
@@ -99,14 +99,14 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/diffusivity', float)
+        self.diffusivity = context.get().config.get(f'equations/{self.equation}/terms/{tag}/diffusivity', float)
 
-    def _diffusion_number(self) -> float:
+    def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
             self._physical_viscosity(
-                fields.physical.velocity.strain_rate_tensor(self.velocity.data)
+                fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
             ).max().item()
-            * self.equation.solver.integrator.dt
+            * dt
             / context.get().mesh.physical_grid_spacing()**2
         )
 
@@ -148,11 +148,12 @@ class GeneralizedNewtonianPowerLawDiffusionTerm(GeneralizedNewtonianDiffusionTer
     baseCoefficient: float
     powerLawExponent: float
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
-        self.baseCoefficient = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/baseCoefficient', float)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
+
+        self.baseCoefficient = context.get().config.get(f'equations/{self.equation}/terms/{tag}/baseCoefficient', float)
         self.powerLawExponent = context.get().config.get(
-            f'equations/{equation.tag}/terms/{tag}/powerLawExponent', float)
+            f'equations/{self.equation}/terms/{tag}/powerLawExponent', float)
 
     def _physical_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
         return self.baseCoefficient*(
@@ -167,13 +168,14 @@ class GeneralizedNewtonianCarreauDiffusionTerm(GeneralizedNewtonianDiffusionTerm
     consistencyIndex: float
     powerIndex: float
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
-        self.lowerLimit = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/lowerLimit', float)
-        self.upperLimit = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/upperLimit', float)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
+
+        self.lowerLimit = context.get().config.get(f'equations/{self.equation}/terms/{tag}/lowerLimit', float)
+        self.upperLimit = context.get().config.get(f'equations/{self.equation}/terms/{tag}/upperLimit', float)
         self.consistencyIndex = context.get().config.get(
-            f'equations/{equation.tag}/terms/{tag}/consistencyIndex', float)
-        self.powerIndex = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/powerIndex', float)
+            f'equations/{self.equation}/terms/{tag}/consistencyIndex', float)
+        self.powerIndex = context.get().config.get(f'equations/{self.equation}/terms/{tag}/powerIndex', float)
 
     def _physical_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
         return (

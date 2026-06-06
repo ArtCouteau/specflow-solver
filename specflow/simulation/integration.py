@@ -26,10 +26,10 @@ class TimeIntegrator:
             for eq in self.solver.equations.values()
         })
 
-    def _get_time_step_target_ratio(self) -> float:
+    def _get_time_step_target_ratio(self, variable: solution.SolutionVariable) -> float:
         _ratio = 1.25
         for key, limiter in self.limiters.items():
-            _value = limiter.current()
+            _value = limiter.current(variable, self.dt)
             print(f'Time step limiter: {key} = {_value:.5f}')
             _ratio = min(_ratio, limiter.target/(_value + defs.SMALL))
 
@@ -37,7 +37,12 @@ class TimeIntegrator:
 
     def setup(self): ...
 
-    def add_time_step_limiter(self, tag: str, target: float, func: Callable[[], float]) -> None:
+    def add_time_step_limiter(
+            self,
+            tag: str,
+            target: float,
+            func: Callable[[solution.SolutionVariable, float], float]
+    ) -> None:
         if tag not in self.limiters:
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
         else:
@@ -45,8 +50,8 @@ class TimeIntegrator:
 
         print(f'Added time step limiter "{tag}" (target = {target:.2f})')
 
-    def update(self) -> None:
-        self.dt *= self._get_time_step_target_ratio()
+    def update(self, variable: solution.SolutionVariable) -> None:
+        self.dt *= self._get_time_step_target_ratio(variable)
 
     def overwrite_dt(self, dt: float) -> None:
         self.dt = dt
@@ -134,12 +139,12 @@ class RungeKutta4LowStorage(TimeIntegrator):
 class TimeStepLimiter(object):
     tag: str
     target: float
-    _current: Callable[[], float]
+    _current: Callable[[solution.SolutionVariable, float], float]
 
-    def __init__(self, tag: str, target: float, func: Callable[[], float]) -> None:
+    def __init__(self, tag: str, target: float, func: Callable[[solution.SolutionVariable, float], float]) -> None:
         self.tag = tag
         self.target = target
         self._current = func
 
-    def current(self) -> float:
-        return self._current()
+    def current(self, variable: solution.SolutionVariable, dt: float) -> float:
+        return self._current(variable, dt)

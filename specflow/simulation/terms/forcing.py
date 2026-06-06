@@ -4,7 +4,7 @@ import math
 import torch
 
 from . import term
-from .. import equation, solution
+from .. import solution
 from ...core.numerics import context, sparse
 from ...core.physics import variable
 
@@ -17,19 +17,20 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
     mapping: torch.Tensor
     coefficients: torch.Tensor
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
-        self.sigma = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/sigma', float)
-        self.tau = context.get().config.get(f'equations/{equation.tag}/terms/{tag}/tau', float)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
-        _range = tuple(context.get().config.get(f'equations/{equation.tag}/terms/{tag}/range', list))
+        self.sigma = context.get().config.get(f'equations/{self.equation}/terms/{tag}/sigma', float)
+        self.tau = context.get().config.get(f'equations/{self.equation}/terms/{tag}/tau', float)
+
+        _range = tuple(context.get().config.get(f'equations/{self.equation}/terms/{tag}/range', list))
         self.indices = sparse.indices_from_range(rank, _range[0], _range[1]).to(
             device=context.get().config.get('numerics/device', str)
         )
         self.mapping = sparse.compute_Hermitian_symmetric_mapping(self.indices)
         self.coefficients = self._init_coefficients().to(device=context.get().config.get('numerics/device', str))
 
-        self.previousTime = self.equation.solver.control.time.current
+        self.previousTime = 0.0
 
     def _init_coefficients(self) -> torch.Tensor:
         if context.get().config.get('time/restart', bool):
@@ -58,7 +59,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         return torch.sparse_coo_tensor(  # type: ignore
             self.indices,
             sparse.apply_Hermitian_symmetric_mapping(self.coefficients, self.mapping),
-            size=variable.get(self.equation.variable).size(),
+            size=variable.get(self.variable).size(),
         ).to_dense()
 
     def reconstruct(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
@@ -72,7 +73,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
                 ),
                 self.mapping
             ),
-            size=variable.get(self.equation.variable).size(),
+            size=variable.get(self.variable).size(),
         ).to_dense()
 
     def restart_state(self) -> dict[str, torch.Tensor]:

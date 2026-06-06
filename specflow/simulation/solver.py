@@ -25,7 +25,7 @@ class Solver:
         self.equations = {
             key: equation.EquationRegistry.get(
                 context.get().config.get(f'equations/{key}/prebuild', str, 'custom')
-            )(self, key)
+            )(key)
             for key in context.get().config.get('equations', dict).keys()
         }
         self._init_variable()
@@ -40,6 +40,12 @@ class Solver:
             ) for eq in self.equations.values()
         })
         self.variable.zero_()
+
+    def _add_time_step_limiters(self):
+        for eq in self.equations.values():
+            for term in eq.terms.values():
+                if (limiter := t.time_step_limiter()) is not None:
+                    self.integrator.add_time_step_limiter(*limiter)
 
     def _setup(self):
         self.integrator.setup()

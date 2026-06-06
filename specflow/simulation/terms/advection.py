@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import torch
+from typing import Callable
 
 from . import term
-from .. import equation, solution
+from .. import solution
 from ...core.numerics import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
@@ -13,28 +14,29 @@ class AdvectionTerm(term.Term):
     advectingField: str = 'velocity'
     advectedField: str
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
-        self.advectedField = self.equation.variable
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
+        self.advectedField = variable
 
-        self.equation.solver.integrator.add_time_step_limiter(
+    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
+        return (
             'CFL',
-            context.get().config.get(f'equations/{equation.tag}/terms/{tag}/limiter', float, 0.5),
+            context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
             self._CFL_number
         )
 
-    def _CFL_number(self) -> float:
+    def _CFL_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
-            fourier.to_physical(self.equation.solver.variable.get(self.advectingField)).abs().max().item()
-            * self.equation.solver.integrator.dt
+            fourier.to_physical(variable.get(self.advectingField)).abs().max().item()
+            * dt
             / context.get().mesh.physical_grid_spacing()
         )
 
 
 @term.TermRegistry.register('advection/rotation')
 class RotationFormAdvectionTerm(AdvectionTerm):
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
         if not self.rank.name == 'VECTOR':
             raise ValueError('Rotation form convection term can only be used in vector equations')
@@ -57,8 +59,8 @@ class ConvectionFormAdvectionTerm(AdvectionTerm):
     gradient: derivative.Gradient
     operation: algebra.InterRankOperation
 
-    def __init__(self, equation: equation.Equation, tag: str, rank: variable.Rank):
-        super().__init__(equation, tag, rank)
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
+        super().__init__(tag, equation, variable, rank)
 
         if self.rank.name == 'SCALAR':
             self.gradient = derivative.gradient_scalar

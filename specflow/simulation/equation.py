@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from . import solution, solver
+from . import solution
 from .terms import term
 from ..core.registry import Registry
 from ..core.numerics import context
@@ -14,11 +14,9 @@ class Equation:
     rank: variable.Rank
     tag: str
     terms: dict[str, term.Term]
-    solver: solver.Solver
     variable: str
 
-    def __init__(self, solver: solver.Solver, tag: str):
-        self.solver = solver
+    def __init__(self, tag: str):
         self.tag = tag
         self.rank = variable.Rank[context.get().config.get(f'equations/{self.tag}/rank', str).upper()]
         self.variable = context.get().config.get(f'equations/{self.tag}/variable', str)
@@ -26,7 +24,7 @@ class Equation:
             termTag: term.TermRegistry.get(
                 f'{context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str)}'
                 f'/{context.get().config.get(f'equations/{tag}/terms/{termTag}/model', str)}'
-            )(self, termTag, self.rank)
+            )(termTag, self.tag, self.variable, self.rank)
             for termTag in context.get().config.get(f'equations/{tag}/terms', dict).keys()
         }
 
@@ -46,8 +44,8 @@ class EquationRegistry(Registry[Equation]):
 class NavierStokesEquation(Equation):
     projector: projection.Projector
 
-    def __init__(self, solver: solver.Solver, tag: str):
-        super().__init__(solver, tag)
+    def __init__(self, tag: str):
+        super().__init__(tag)
         self.projector = projection.ProjectorRegistry.get(
             context.get().config.get(f'equations/{self.tag}/projector', str)
         )()
