@@ -52,8 +52,9 @@ class Solver:
                 raise ValueError(f'NaN values detected in the variable of equation {key}')
 
     def _write_state(self):
-        path = f'output/{self.control.time.timestamp()}/simulation'
-        context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
+        timestamp = context.get().io.output.timestamp(self.control.time.current)
+        path = f'output/{timestamp}/simulation'
+        context.get().io.output.make_dir(f'output/{timestamp}')
         for eq in self.equations.values():
             context.get().io.h5.write_tensor(
                 path,
@@ -97,7 +98,7 @@ class Solver:
         _t0 = time.perf_counter()
         while self.control.time.advance():
             print(f'Step {self.control.time.step}')
-            print(f'Time = {self.control.time.timestamp()}')
+            print(f'Time = {context.get().io.output.timestamp(self.control.time.current)}')
 
             self.integrator.update()
             print(f'Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')

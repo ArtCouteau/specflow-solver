@@ -34,7 +34,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
     def _init_coefficients(self) -> torch.Tensor:
         if context.get().config.get('time/restart', bool):
             return context.get().io.h5.read_tensor(
-                f'output/{self.equation.solver.control.time.timestamp()}/simulation',
+                f'output/{context.get().io.output.timestamp(self.equation.solver.control.time.current)}/simulation',
                 f'restart/{self.tag}/coefficients',
                 device=context.get().config.get('numerics/device', str)
             )

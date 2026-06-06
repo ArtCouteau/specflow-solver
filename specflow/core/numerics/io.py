@@ -10,6 +10,7 @@ import torch
 import yaml
 
 from . import context
+from .. import defs
 
 
 class IOInterface(object):
@@ -99,6 +100,9 @@ class OutputInterface(object):
         if os.path.exists(path):
             self.clean_dir(path)
         self.make_dir(path)
+
+    def timestamp(self, time: float) -> str:
+        return f'{time:.{defs.TIMESTAMP_DIGITS}f}'
 
     def list_times(self, path: str = 'output', range: tuple[float, float] | None = None) -> list[str]:
         _times = sorted([_d for _d in os.listdir(f'{path}') if re.search(r'\d+\.\d+', _d)],  key=float)

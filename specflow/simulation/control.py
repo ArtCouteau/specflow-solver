@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from . import solver
 from ..core.numerics import context
-from ..core import defs
 
 
 class SimulationControls:
@@ -29,12 +28,6 @@ class TimeControls:
 
     def advance(self) -> bool:
         return self.current < self.end
-
-    def timestamp(self, time: float | None = None) -> str:
-        if time is None:
-            return f'{self.current:.{defs.TIMESTAMP_DIGITS}f}'
-        else:
-            return f'{time:.{defs.TIMESTAMP_DIGITS}f}'
 
     def update(self):
         if self.current + self.solver.integrator.dt > self.save.next:
