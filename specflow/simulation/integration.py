@@ -96,10 +96,10 @@ class RungeKutta4(TimeIntegrator):
         t = self.solver.control.time.current
         u = self.solver.variable
 
-        k[0].copy_(self._compute_rhs(u,                    t))
-        k[1].copy_(self._compute_rhs(u + 0.5*self.dt*k[0], t + 0.5*self.dt))
-        k[2].copy_(self._compute_rhs(u + 0.5*self.dt*k[1], t + 0.5*self.dt))
-        k[3].copy_(self._compute_rhs(u + self.dt*k[2],     t + self.dt))
+        k[0].copy_(self._compute_rhs(u,                        t))
+        k[1].copy_(self._compute_rhs(u.add_(0.5*self.dt*k[0]), t + 0.5*self.dt))
+        k[2].copy_(self._compute_rhs(u.add_(0.5*self.dt*k[1]), t + 0.5*self.dt))
+        k[3].copy_(self._compute_rhs(u.add_(self.dt*k[2]),     t + self.dt))
 
         return (k[0] + 2*k[1] + 2*k[2] + k[3]) / 6
 
