@@ -82,8 +82,7 @@ class Solver:
                     context.get().io.h5.write_tensor(
                         path,
                         f'fields/{key}',
-                        value,
-                        {'rank': eq.rank.name}
+                        value
                     )
 
     def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):

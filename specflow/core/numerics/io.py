@@ -65,18 +65,11 @@ class H5Interface(object):
         with self._open_write(path) as h5file:
             _tag = tag.split('/')
             _grp = self._require_group_recursive(h5file, *_tag[:-1])
-            if data.numel() == 1:
-                try:
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-                except ValueError:
-                    del _grp[_tag[-1]]
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-            else:
-                try:
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-                except ValueError:
-                    del _grp[_tag[-1]]
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
+            try:
+                _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
+            except ValueError:
+                del _grp[_tag[-1]]
+                _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
             if meta is not None:
                 _dset.attrs.update(meta)  # type: ignore
 
