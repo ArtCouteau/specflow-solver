@@ -131,55 +131,6 @@ class RungeKutta4LowStorage(TimeIntegrator):
             u.add_(self._gamma[i] * self.dt * h)
 
 
-@TimeIntegratorRegistry.register('AdamsBashforth4')
-class AdamsBashforth4(TimeIntegrator):
-    _weights = [
-        [1.],
-        [3/2,   -1/2],
-        [23/12, -4/3,   5/12],
-        [55/24, -59/24, 37/24, -3/8],
-    ]
-
-    k: list[solution.SolutionVariable]
-    _step: int
-
-    def __init__(self, solver: solver.Solver):
-        super().__init__(solver)
-
-    def setup(self):
-        self.k = [
-            solution.SolutionVariable({
-                key: context.get().memory.alloc(
-                    f'AdamsBashforth4/k{i}/{key}',
-                    tensor.shape,
-                    dtype=tensor.dtype,
-                    device=tensor.device,
-                ) for key, tensor in self.solver.variable.data.items()
-            })
-            for i in range(3)
-        ]
-        self._step = 0
-
-    def _compute_time_derivative(self) -> solution.SolutionVariable:
-        k = self.k
-        w = self._weights[min(self._step, 3)]
-        t = self.solver.control.time.current
-        u = self.solver.variable
-
-        f_n = self._compute_rhs(u, t)
-
-        result = w[0] * f_n
-        for j, wj in enumerate(w[1:]):
-            result = result + wj * k[j]
-
-        for j in range(min(self._step, 2), 0, -1):
-            k[j].copy_(k[j - 1])
-        k[0].copy_(f_n)
-        self._step += 1
-
-        return result
-
-
 class TimeStepLimiter(object):
     tag: str
     target: float
