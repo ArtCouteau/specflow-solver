@@ -125,6 +125,15 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
             physicalStrainRateTensor
         )
 
+    def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
+        return {
+            'viscosity': fourier.to_spectral(
+                self._physical_viscosity(
+                    fields.spectral.velocity.strain_rate_tensor(variable.get('velocity'))
+                )
+            )
+        }
+
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return derivative.divergence_tensor(
             context.get().physics.dealias.apply(

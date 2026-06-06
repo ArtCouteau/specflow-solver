@@ -17,6 +17,12 @@ class Term:
         self.tag = tag
         self.rank = rank
 
+    def restart_state(self) -> dict[str, torch.Tensor]:
+        return {}
+
+    def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
+        return {}
+
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
 
 

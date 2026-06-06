@@ -53,14 +53,32 @@ class Solver:
                 raise ValueError(f'NaN values detected in the variable of equation {key}')
 
     def _write_state(self):
+        path = f'output/{self.control.time.timestamp()}/simulation'
         context.get().io.output.make_dir(f'output/{self.control.time.timestamp()}')
         for eq in self.equations.values():
             context.get().io.h5.write_tensor(
-                f'output/{self.control.time.timestamp()}/simulation',
+                path,
                 f'fields/{eq.variable}',
                 self.variable.get(eq.variable),
                 {'rank': eq.rank.name}
             )
+
+            for term in eq.terms.values():
+                for key, value in term.restart_state().items():
+                    context.get().io.h5.write_tensor(
+                        path,
+                        f'restart/{term.tag}/{key}',
+                        value,
+                        {'rank': eq.rank.name}
+                    )
+
+                for key, value in term.diagnostic_fields(self.variable, self.control.time.current).items():
+                    context.get().io.h5.write_tensor(
+                        path,
+                        f'fields/{key}',
+                        value,
+                        {'rank': eq.rank.name}
+                    )
 
     def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
         if space == 'physical':

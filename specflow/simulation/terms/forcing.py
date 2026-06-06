@@ -35,7 +35,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         if context.get().config.get('time/restart', bool):
             return context.get().io.h5.read_tensor(
                 f'output/{self.equation.solver.control.time.timestamp()}/simulation',
-                f'{self.tag}/coefficients',
+                f'restart/{self.tag}/coefficients',
                 device=context.get().config.get('numerics/device', str)
             )
         else:
@@ -49,6 +49,9 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
             - dt/self.tau * self.coefficients
             + self.sigma * math.sqrt(2.0*dt/self.tau) * torch.randn_like(self.coefficients)
         )
+
+    def restart_state(self) -> dict[str, torch.Tensor]:
+        return {'coefficients': self.coefficients}
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         if time > self.previousTime:
