@@ -15,13 +15,15 @@ class Context:
     def __init__(self) -> None:
         self.io = io.IOInterface()
         self.memory = memory.MemoryManager()
-        self.physics = PhysicsContext(self)
 
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
 
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
+
+    def generate_physics_context(self) -> None:
+        self.physics = PhysicsContext(self)
 
 
 class PhysicsContext:
@@ -40,6 +42,7 @@ def init() -> None:
     _context = Context()
     _context.read_user_configuration()
     _context.generate_mesh()
+    _context.generate_physics_context()
     print('Done')
 
 
