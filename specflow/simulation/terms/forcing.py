@@ -50,9 +50,6 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
             + self.sigma * math.sqrt(2.0*dt/self.tau) * torch.randn_like(self.coefficients)
         )
 
-    def restart_state(self) -> dict[str, torch.Tensor]:
-        return {'coefficients': self.coefficients}
-
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         if time > self.previousTime:
             self._update_coefficients(time - self.previousTime)
@@ -63,3 +60,20 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
             sparse.apply_Hermitian_symmetric_mapping(self.coefficients, self.mapping),
             size=variable.get(self.equation.variable).size(),
         ).to_dense()
+
+    def reconstruct(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+        return torch.sparse_coo_tensor(  # type: ignore
+            self.indices,
+            sparse.apply_Hermitian_symmetric_mapping(
+                context.get().io.h5.read_tensor(
+                    f'output/{context.get().io.output.timestamp(time)}/simulation',
+                    f'restart/{self.tag}/coefficients',
+                    device=context.get().config.get('numerics/device', str)
+                ),
+                self.mapping
+            ),
+            size=variable.get(self.equation.variable).size(),
+        ).to_dense()
+
+    def restart_state(self) -> dict[str, torch.Tensor]:
+        return {'coefficients': self.coefficients}

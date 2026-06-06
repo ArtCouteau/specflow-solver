@@ -17,13 +17,16 @@ class Term:
         self.tag = tag
         self.rank = rank
 
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
+
+    def reconstruct(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+        return self.compute(variable, time)
+
     def restart_state(self) -> dict[str, torch.Tensor]:
         return {}
 
     def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
         return {}
-
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
 
 
 class TermRegistry(Registry[Term]):
