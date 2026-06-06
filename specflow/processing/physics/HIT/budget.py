@@ -7,8 +7,8 @@ from ....simulation import equation, solution
 
 
 def kinetic_energy(
-        equation: equation.Equation,
-        solution: solution.SolutionVariable,
+        equation: equation.NavierStokesEquation,
+        velocity: torch.Tensor,
         time: float,
         shells: shell.SpectralShells
 ) -> dict[str, torch.Tensor]:
@@ -18,13 +18,16 @@ def kinetic_energy(
         tmp[term.tag] = torch.zeros(
             (shells.nShells,),
             dtype=context.get().config.get('numerics/precision/float', torch.dtype),
-            device=solution.data[term.variable].device
+            device=velocity.device
         )
 
         for index in range(shells.nShells):
             tmp[term.tag][index] = volume.sum_over_spectral_domain(
                 shells.shell(index)
-                * algebra.inner_vector_vector(solution.get('velocity').conj(), term.reconstruct(solution, time)).real
+                * algebra.inner_vector_vector(
+                    velocity.conj(),
+                    term.reconstruct(solution.SolutionVariable({'velocity': velocity}), time)
+                ).real
             )
 
     return tmp
