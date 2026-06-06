@@ -22,8 +22,8 @@ class Term:
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
 
-    def reconstruct(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.compute(variable, time)
+    def reconstruct(self, variable: solution.SolutionVariable, timestamp: str) -> torch.Tensor:
+        return self.compute(variable, float(timestamp))
 
     def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
         return None

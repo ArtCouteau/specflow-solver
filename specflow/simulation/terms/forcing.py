@@ -62,12 +62,12 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
             size=variable.get(self.variable).size(),
         ).to_dense()
 
-    def reconstruct(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+    def reconstruct(self, variable: solution.SolutionVariable, timestamp: str) -> torch.Tensor:
         return torch.sparse_coo_tensor(  # type: ignore
             self.indices,
             sparse.apply_Hermitian_symmetric_mapping(
                 context.get().io.h5.read_tensor(
-                    f'output/{context.get().io.output.timestamp(time)}/simulation',
+                    f'output/{timestamp}/simulation',
                     f'restart/{self.tag}/coefficients',
                     device=context.get().config.get('numerics/device', str)
                 ),

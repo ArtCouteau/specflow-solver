@@ -9,7 +9,7 @@ from ....simulation import equation, solution
 def kinetic_energy(
         equation: equation.NavierStokesEquation,
         velocity: torch.Tensor,
-        time: float,
+        timestamp: str,
         shells: shell.SpectralShells
 ) -> dict[str, torch.Tensor]:
     tmp: dict[str, torch.Tensor] = {}
@@ -26,7 +26,7 @@ def kinetic_energy(
                 shells.shell(index)
                 * algebra.inner_vector_vector(
                     velocity.conj(),
-                    term.reconstruct(solution.SolutionVariable({'velocity': velocity}), time)
+                    term.reconstruct(solution.SolutionVariable({'velocity': velocity}), timestamp)
                 ).real
             )
 
