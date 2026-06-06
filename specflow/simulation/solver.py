@@ -18,7 +18,6 @@ class Solver:
     variable: solution.SolutionVariable
 
     def __init__(self):
-        context.get().generate_physics_context()
         self.control = control.SimulationControls(self)
         self.integrator = integration.TimeIntegratorRegistry.get(
             context.get().config.get('schemes/integration', str)
