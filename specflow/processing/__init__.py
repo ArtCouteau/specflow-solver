@@ -1,3 +1,3 @@
-from . import physics
+from . import numerics, physics
 
-__all__ = ['physics']
+__all__ = ['numerics', 'physics']
