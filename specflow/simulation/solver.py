@@ -44,7 +44,7 @@ class Solver:
     def _add_time_step_limiters(self):
         for eq in self.equations.values():
             for term in eq.terms.values():
-                if (limiter := t.time_step_limiter()) is not None:
+                if (limiter := term.time_step_limiter()) is not None:
                     self.integrator.add_time_step_limiter(*limiter)
 
     def _setup(self):
@@ -106,7 +106,7 @@ class Solver:
             print(f'Step {self.control.time.step}')
             print(f'Time = {context.get().io.output.timestamp(self.control.time.current)}')
 
-            self.integrator.update()
+            self.integrator.update(self.variable)
             print(f'Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')
 
             if self.control.time.save.active:
