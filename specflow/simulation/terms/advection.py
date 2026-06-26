@@ -72,7 +72,7 @@ class ConvectionFormAdvectionTerm(AdvectionTerm):
             raise NotImplementedError()
 
     def _physical_space_operation(self, velocity: torch.Tensor, gradient: torch.Tensor) -> torch.Tensor:
-        return self.operation(velocity, gradient)
+        return - self.operation(velocity, gradient)
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
         return context.get().physics.dealias.apply(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..physics import dealias
 
 from . import io, memory, mesh
+from .operations import derivative
 
 
 class Context:
@@ -28,9 +29,11 @@ class Context:
 
 class PhysicsContext:
     dealias: dealias.Dealias
+    derivative: derivative.DerivativeOperators
 
     def __init__(self, context: Context) -> None:
         self.dealias = dealias.DealiasRegistry.get(context.config.get('schemes/dealiasing', str))()
+        self.derivative = derivative.DerivativeOperators()
 
 
 _context: Context | None = None

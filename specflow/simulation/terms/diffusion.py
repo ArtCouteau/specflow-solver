@@ -57,16 +57,11 @@ class ConstantDiffusivityDiffusionTerm(DiffusionTerm):
 class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
     coefficient: float
     exponent: int
-    laplacian: derivative.Laplacian
 
     def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
         super().__init__(tag, equation, variable, rank)
 
-        if self.rank.name == 'SCALAR':
-            self.laplacian = derivative.laplacian_scalar
-        elif self.rank.name == 'VECTOR':
-            self.laplacian = derivative.laplacian_vector
-        else:
+        if self.rank.name not in ('SCALAR', 'VECTOR'):
             raise NotImplementedError()
 
         self.coefficient = context.get().config.get(f'equations/{self.equation}/terms/{tag}/coefficient', float)
@@ -85,7 +80,7 @@ class ConstantDiffusivityHyperDiffusionTerm(DiffusionTerm):
         )
 
     def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.coefficient * self.laplacian(variable.get(self.variable))**(self.exponent//2)
+        return self.coefficient * derivative.nabla2()**self.exponent * variable.get(self.variable)
 
 
 class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):

@@ -12,9 +12,9 @@ class SolutionVariable:
     def get(self, key: str) -> torch.Tensor:
         return self.data[key]
 
-    def add_(self, other: SolutionVariable) -> SolutionVariable:
+    def add_(self, other: SolutionVariable, alpha: float = 1.0) -> SolutionVariable:
         for key in self.data:
-            self.data[key].add_(other.data[key])
+            self.data[key].add_(other.data[key], alpha=alpha)
         return self
 
     def mul_(self, scalar: int | float) -> SolutionVariable:

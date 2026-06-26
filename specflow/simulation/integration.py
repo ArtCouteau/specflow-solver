@@ -73,6 +73,7 @@ class EulerForward(TimeIntegrator):
 @TimeIntegratorRegistry.register('RungeKutta4')
 class RungeKutta4(TimeIntegrator):
     k: list[solution.SolutionVariable]
+    stage: solution.SolutionVariable
 
     def __init__(self, solver: solver.Solver):
         super().__init__(solver)
@@ -91,15 +92,32 @@ class RungeKutta4(TimeIntegrator):
         ]
         [self.k[i].zero_() for i in range(4)]
 
+        self.stage = solution.SolutionVariable({
+            key: context.get().memory.alloc(
+                f'RungeKutta4/stage/{key}',
+                tensor.shape,
+                dtype=tensor.dtype,
+                device=tensor.device,
+            ) for key, tensor in self.solver.variable.data.items()
+        })
+        self.stage.zero_()
+
     def _compute_time_derivative(self) -> solution.SolutionVariable:
         k = self.k
+        stage = self.stage
         t = self.solver.control.time.current
         u = self.solver.variable
 
-        k[0].copy_(self._compute_rhs(u,                        t))
-        k[1].copy_(self._compute_rhs(u.add_(0.5*self.dt*k[0]), t + 0.5*self.dt))
-        k[2].copy_(self._compute_rhs(u.add_(0.5*self.dt*k[1]), t + 0.5*self.dt))
-        k[3].copy_(self._compute_rhs(u.add_(self.dt*k[2]),     t + self.dt))
+        k[0].copy_(self._compute_rhs(u, t))
+
+        stage.copy_(u).add_(k[0], alpha=0.5*self.dt)
+        k[1].copy_(self._compute_rhs(stage, t + 0.5*self.dt))
+
+        stage.copy_(u).add_(k[1], alpha=0.5*self.dt)
+        k[2].copy_(self._compute_rhs(stage, t + 0.5*self.dt))
+
+        stage.copy_(u).add_(k[2], alpha=self.dt)
+        k[3].copy_(self._compute_rhs(stage, t + self.dt))
 
         return (k[0] + 2*k[1] + 2*k[2] + k[3]) / 6
 
