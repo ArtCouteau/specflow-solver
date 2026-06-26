@@ -69,7 +69,7 @@ class PhaseshiftDealias(Dealias):
         )
         self._shiftFactor = torch.exp(1.0j*phase)
         self._inverseShiftFactor = torch.exp(-1.0j*phase)
-        self.filter = mask.spherical(context.get().config.get('grid/N', int)/3.0)
+        self.filter = mask.spherical(context.get().config.get('grid/N', int)/2.0)
 
     def _shift(self, data: torch.Tensor) -> torch.Tensor:
         return data * self._shiftFactor
