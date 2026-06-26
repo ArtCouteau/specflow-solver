@@ -2,35 +2,32 @@ import torch
 
 from ...numerics import shell
 from ....core.numerics import context
-from ....core.numerics.operations import algebra, norm, volume
+from ....core.numerics.operations import algebra, volume
+from ....simulation import equation, solution
 
 
-def _compute(field: torch.Tensor, term: torch.Tensor, shells: shell.SpectralShells) -> torch.Tensor:
-    tmp = torch.zeros(
-        (shells.nShells,),
-        dtype=context.get().config.get('numerics/precision/float', torch.dtype),
-        device=field.device
-    )
+def kinetic_energy(
+        equation: equation.NavierStokesEquation,
+        velocity: torch.Tensor,
+        timestamp: str,
+        shells: shell.SpectralShells
+) -> dict[str, torch.Tensor]:
+    tmp: dict[str, torch.Tensor] = {}
 
-    for index in range(shells.nShells):
-        tmp[index] = volume.sum_over_spectral_domain(
-            shells.spherical(index)
-            * algebra.inner_vector_vector(field.conj(), term).real
+    for term in equation.terms.values():
+        tmp[term.tag] = torch.zeros(
+            (shells.nShells,),
+            dtype=context.get().config.get('numerics/precision/float', torch.dtype),
+            device=velocity.device
         )
 
+        for index in range(shells.nShells):
+            tmp[term.tag][index] = volume.sum_over_spectral_domain(
+                shells.spherical(index)
+                * algebra.inner_vector_vector(
+                    velocity.conj(),
+                    term.reconstruct(solution.SolutionVariable({'velocity': velocity}), timestamp)
+                ).real
+            )
+
     return tmp
-
-
-def kinetic_energy(velocity: torch.Tensor, term: torch.Tensor, shells: shell.SpectralShells) -> torch.Tensor:
-    return _compute(velocity, term, shells)
-
-
-def enstrophy(velocity: torch.Tensor, term: torch.Tensor, shells: shell.SpectralShells) -> torch.Tensor:
-    return _compute(
-        algebra.mul_scalar_vector(
-            norm.square_l2_norm(context.get().mesh.grid),
-            velocity
-        ),
-        term,
-        shells
-    )

@@ -10,6 +10,7 @@ import torch
 import yaml
 
 from . import context
+from .. import defs
 
 
 class IOInterface(object):
@@ -60,23 +61,17 @@ class H5Interface(object):
                 np.array(self._read_dataset(h5file, tag))
             ).to(device=device)
 
-    def write_tensor(self, path: str, tag: str, data: torch.Tensor, meta: dict[str, Any] = {}):
+    def write_tensor(self, path: str, tag: str, data: torch.Tensor, meta: dict[str, Any] | None = None):
         with self._open_write(path) as h5file:
             _tag = tag.split('/')
             _grp = self._require_group_recursive(h5file, *_tag[:-1])
-            if data.numel() == 1:
-                try:
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-                except ValueError:
-                    del _grp[_tag[-1]]
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-            else:
-                try:
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-                except ValueError:
-                    del _grp[_tag[-1]]
-                    _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
-            _dset.attrs.update(meta)  # type: ignore
+            try:
+                _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
+            except ValueError:
+                del _grp[_tag[-1]]
+                _dset = _grp.create_dataset(_tag[-1], data=data.cpu().numpy())  # type: ignore
+            if meta is not None:
+                _dset.attrs.update(meta)  # type: ignore
 
     def read_group_keys(self, path: str, tag: str) -> list[str]:
         with self._open_read(path) as h5file:
@@ -98,6 +93,9 @@ class OutputInterface(object):
         if os.path.exists(path):
             self.clean_dir(path)
         self.make_dir(path)
+
+    def timestamp(self, time: float) -> str:
+        return f'{time:.{defs.TIMESTAMP_DIGITS}f}'
 
     def list_times(self, path: str = 'output', range: tuple[float, float] | None = None) -> list[str]:
         _times = sorted([_d for _d in os.listdir(f'{path}') if re.search(r'\d+\.\d+', _d)],  key=float)

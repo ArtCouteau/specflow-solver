@@ -1,50 +1,39 @@
 from __future__ import annotations
 
 import torch
-from typing import Type
+from typing import Callable
 
-from .. import solver
+from .. import solution
 from ...core.physics import variable
-
-
-class TermRegistry:
-    _registry: dict[str, dict[str, Type[Term]]] = {}
-
-    @classmethod
-    def register(cls, kind: str, model: str):
-        def decorator(term_class:  Type[Term]) -> Type[Term]:
-            if kind not in cls._registry:
-                cls._registry[kind] = {}
-            cls._registry[kind][model] = term_class
-            return term_class
-        return decorator
-
-    @classmethod
-    def get(cls, kind: str, model: str) -> Type[Term]:
-        if kind not in cls._registry:
-            raise KeyError(
-                f'Term kind {kind} not found, available types:\n'
-                + '\n'.join(f"- {k}" for k in cls._registry.keys())
-            )
-        if model not in cls._registry[kind]:
-            raise KeyError(
-                f'Term model {model} for {kind} kind not found, available models:\n'
-                + '\n'.join(f"- {k}" for k in cls._registry[kind].keys())
-            )
-        return cls._registry[kind][model]
+from ...core.registry import Registry
 
 
 class Term:
-    equation: str
     tag: str
-    kind: str
-    model: str
+    equation: str
+    variable: str
     rank: variable.Rank
 
-    def __init__(self, equation: str, tag: str, rank: variable.Rank):
-        self.equation = equation
+    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
         self.tag = tag
+        self.equation = equation
+        self.variable = variable
         self.rank = rank
 
-    def add_references(self, solver: solver.Solver) -> None: ...
-    def compute(self, variable: torch.Tensor, time: float) -> torch.Tensor: ...
+    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
+
+    def reconstruct(self, variable: solution.SolutionVariable, timestamp: str) -> torch.Tensor:
+        return self.compute(variable, float(timestamp))
+
+    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
+        return None
+
+    def restart_state(self) -> dict[str, torch.Tensor]:
+        return {}
+
+    def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
+        return {}
+
+
+class TermRegistry(Registry[Term]):
+    pass

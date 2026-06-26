@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from specflow.core.physics import dealias
+from ..physics import dealias
 
 from . import io, memory, mesh
-from ...simulation import control, integration
+from .operations import derivative
 
 
 class Context:
@@ -12,11 +12,10 @@ class Context:
     memory: memory.MemoryManager
     mesh: mesh.Mesh
     physics: PhysicsContext
-    sim: SimulationContext
 
     def __init__(self) -> None:
-        self.memory = memory.MemoryManager()
         self.io = io.IOInterface()
+        self.memory = memory.MemoryManager()
 
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
@@ -24,27 +23,17 @@ class Context:
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
 
-    def generate_simulation_context(self) -> None:
-        self.sim = SimulationContext(self)
-
     def generate_physics_context(self) -> None:
         self.physics = PhysicsContext(self)
 
 
-class SimulationContext:
-    control: control.SimulationControls
-    integrator: integration.TimeIntegrator
-
-    def __init__(self, context: Context) -> None:
-        self.control = control.SimulationControls()
-        self.integrator = integration.TimeIntegratorRegistry.get(context.config.get('schemes/integration', str))()
-
-
 class PhysicsContext:
     dealias: dealias.Dealias
+    derivative: derivative.DerivativeOperators
 
     def __init__(self, context: Context) -> None:
         self.dealias = dealias.DealiasRegistry.get(context.config.get('schemes/dealiasing', str))()
+        self.derivative = derivative.DerivativeOperators()
 
 
 _context: Context | None = None
@@ -56,6 +45,7 @@ def init() -> None:
     _context = Context()
     _context.read_user_configuration()
     _context.generate_mesh()
+    _context.generate_physics_context()
     print('Done')
 
 
