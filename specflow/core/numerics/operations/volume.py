@@ -1,10 +1,11 @@
 import torch
 
 from .. import context, dims
+from ..decomposition import reduction
 
 
 def sum(field: torch.Tensor) -> torch.Tensor:
-    return field.sum(dim=dims.domain())
+    return reduction.global_sum(field, dim=dims.domain())
 
 
 def sum_over_spectral_domain(spectralField: torch.Tensor) -> torch.Tensor:
@@ -13,10 +14,10 @@ def sum_over_spectral_domain(spectralField: torch.Tensor) -> torch.Tensor:
         paired = paired[..., :-1]
 
     return (
-        spectralField.sum(dim=dims.domain())
-        + paired.sum(dim=dims.domain())
+        reduction.global_sum(spectralField, dim=dims.domain())
+        + reduction.global_sum(paired, dim=dims.domain())
     )
 
 
 def mean(field: torch.Tensor) -> torch.Tensor:
-    return field.mean(dim=dims.domain())
+    return reduction.global_mean(field, dim=dims.domain())

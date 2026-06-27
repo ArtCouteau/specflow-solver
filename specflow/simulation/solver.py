@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import time
 import torch
+import torch.distributed
 from typing import Literal
 
 from . import control, equation, integration, solution
 from ..core import defs
-from ..core.numerics import context
+from ..core.numerics import context, dims
+from ..core.numerics.decomposition import communication
 from ..core.numerics.operations import fourier
 from ..core.physics import variable
 
@@ -41,6 +43,9 @@ class Solver:
         })
         self.variable.zero_()
 
+        if context.get().config.get('time/restart', bool, False):
+            self._read_state()
+
     def _add_time_step_limiters(self):
         for eq in self.equations.values():
             for term in eq.terms.values():
@@ -60,12 +65,21 @@ class Solver:
     def _write_state(self):
         timestamp = context.get().io.output.timestamp(self.control.time.current)
         path = f'output/{timestamp}/simulation'
+
+        gathered = {
+            eq.variable: self._gather_field(self.variable.get(eq.variable))
+            for eq in self.equations.values()
+        }
+
+        if context.get().distribution.rank != 0:
+            return
+
         context.get().io.output.make_dir(f'output/{timestamp}')
         for eq in self.equations.values():
             context.get().io.h5.write_tensor(
                 path,
                 f'fields/{eq.variable}',
-                self.variable.get(eq.variable),
+                gathered[eq.variable],
                 {'rank': eq.rank.name}
             )
 
@@ -85,6 +99,41 @@ class Solver:
                         value
                     )
 
+    def _read_state(self):
+        timestamp = context.get().io.output.timestamp(context.get().config.get('time/start', float))
+        path = f'output/{timestamp}/simulation'
+
+        for eq in self.equations.values():
+            local = self.variable.get(eq.variable)
+
+            full = None
+            if context.get().distribution.rank == 0:
+                full = context.get().io.h5.read_tensor(path, f'fields/{eq.variable}', device=str(local.device))
+
+            local.copy_(self._scatter_field(full, local))
+
+    def _gather_field(self, field: torch.Tensor) -> torch.Tensor:
+        if not context.get().distribution.enabled:
+            return field
+
+        return communication.gather_full(
+            field, splitAxis=dims.domain()[0], splitAxisGlobalSize=context.get().config.get('grid/N', int)
+        )
+
+    def _scatter_field(self, field: torch.Tensor | None, local: torch.Tensor) -> torch.Tensor:
+        if not context.get().distribution.enabled:
+            assert field is not None
+            return field
+
+        return communication.scatter_full(
+            field,
+            localShape=tuple(local.shape),
+            splitAxis=dims.domain()[0],
+            splitAxisGlobalSize=context.get().config.get('grid/N', int),
+            dtype=local.dtype,
+            device=local.device
+        )
+
     def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
         if space == 'physical':
             self.variable.get(variable).copy_(fourier.to_spectral(data))
@@ -95,7 +144,10 @@ class Solver:
         print('\n\nStarting time loop\n')
 
         print('Clean output directory')
-        context.get().io.output.make_or_clean_dir('output')
+        if context.get().distribution.rank == 0:
+            context.get().io.output.make_or_clean_dir('output')
+        if context.get().distribution.enabled:
+            torch.distributed.barrier()
 
         self._setup()
 

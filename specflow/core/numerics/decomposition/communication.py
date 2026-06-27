@@ -8,72 +8,75 @@ from .. import context
 
 def _rank_and_world_size() -> tuple[int, int]:
     distribution = context.get().distribution
-    return distribution.rank, distribution.world_size
+    return distribution.rank, distribution.worldSize
 
 
-def _split_sizes(global_size: int, world_size: int) -> list[int]:
-    base, remainder = divmod(global_size, world_size)
-    sizes = [base] * world_size
-    for rank in range(world_size - remainder, world_size):
+def _split_sizes(globalSize: int, worldSize: int) -> list[int]:
+    base, remainder = divmod(globalSize, worldSize)
+    sizes = [base] * worldSize
+    for rank in range(worldSize - remainder, worldSize):
         sizes[rank] += 1
     return sizes
 
 
-def local_size(global_size: int) -> int:
-    rank, world_size = _rank_and_world_size()
-    return _split_sizes(global_size, world_size)[rank]
+def local_size(globalSize: int) -> int:
+    rank, worldSize = _rank_and_world_size()
+    return _split_sizes(globalSize, worldSize)[rank]
 
 
-def local_slice(global_size: int) -> tuple[int, int]:
-    rank, world_size = _rank_and_world_size()
-    sizes = _split_sizes(global_size, world_size)
+def local_slice(globalSize: int) -> tuple[int, int]:
+    rank, worldSize = _rank_and_world_size()
+    sizes = _split_sizes(globalSize, worldSize)
     start = sum(sizes[:rank])
     return start, start + sizes[rank]
 
 
 def transpose(
     tensor: torch.Tensor,
-    split_axis: int,
-    split_axis_global_size: int,
-    gather_axis: int,
-    gather_axis_global_size: int,
+    splitAxis: int,
+    splitAxisGlobalSize: int,
+    gatherAxis: int,
+    gatherAxisGlobalSize: int,
 ) -> torch.Tensor:
-    """Redistribute `tensor` from split-along-`gather_axis` (full along `split_axis`)
-    to split-along-`split_axis` (full along `gather_axis`) via one all-to-all."""
-    rank, world_size = _rank_and_world_size()
-    if world_size == 1:
+    """Redistribute `tensor` from split-along-`gatherAxis` (full along `splitAxis`)
+    to split-along-`splitAxis` (full along `gatherAxis`) via one all-to-all."""
+    rank, worldSize = _rank_and_world_size()
+    if worldSize == 1:
         return tensor
 
-    split_axis_sizes = _split_sizes(split_axis_global_size, world_size)
-    gather_axis_sizes = _split_sizes(gather_axis_global_size, world_size)
+    splitAxisSizes = _split_sizes(splitAxisGlobalSize, worldSize)
+    gatherAxisSizes = _split_sizes(gatherAxisGlobalSize, worldSize)
 
-    send_chunks = [chunk.contiguous() for chunk in tensor.split(gather_axis_sizes, dim=gather_axis)]
+    # `splitAxis` is currently full locally (size splitAxisGlobalSize); chop it into
+    # per-destination-rank chunks. `gatherAxis` is currently split (local size
+    # gatherAxisSizes[rank]) and is left untouched by this split.
+    sendChunks = [chunk.contiguous() for chunk in tensor.split(splitAxisSizes, dim=splitAxis)]
 
-    recv_shape = list(tensor.shape)
-    recv_shape[gather_axis] = gather_axis_sizes[rank]
-    recv_chunks = []
-    for source in range(world_size):
-        shape = list(recv_shape)
-        shape[split_axis] = split_axis_sizes[source]
-        recv_chunks.append(torch.empty(shape, dtype=tensor.dtype, device=tensor.device))
+    recvShape = list(tensor.shape)
+    recvShape[splitAxis] = splitAxisSizes[rank]
+    recvChunks = []
+    for source in range(worldSize):
+        shape = list(recvShape)
+        shape[gatherAxis] = gatherAxisSizes[source]
+        recvChunks.append(torch.empty(shape, dtype=tensor.dtype, device=tensor.device))
 
-    dist.all_to_all(recv_chunks, send_chunks)
+    dist.all_to_all(recvChunks, sendChunks)
 
-    return torch.cat(recv_chunks, dim=split_axis)
+    return torch.cat(recvChunks, dim=gatherAxis)
 
 
-def mirror_exchange(local_tensor: torch.Tensor) -> torch.Tensor:
-    """Swap this rank's whole local slab with rank `world_size - 1 - rank` (its fixed
+def mirror_exchange(localTensor: torch.Tensor) -> torch.Tensor:
+    """Swap this rank's whole local slab with rank `worldSize - 1 - rank` (its fixed
     mirror partner). Self-exchange (no-op) when a rank is its own partner."""
-    rank, world_size = _rank_and_world_size()
-    partner = world_size - 1 - rank
+    rank, worldSize = _rank_and_world_size()
+    partner = worldSize - 1 - rank
     if partner == rank:
-        return local_tensor.clone()
+        return localTensor.clone()
 
-    local_tensor = local_tensor.contiguous()
-    received = torch.empty_like(local_tensor)
+    localTensor = localTensor.contiguous()
+    received = torch.empty_like(localTensor)
     ops = [
-        dist.P2POp(dist.isend, local_tensor, partner),
+        dist.P2POp(dist.isend, localTensor, partner),
         dist.P2POp(dist.irecv, received, partner),
     ]
     for request in dist.batch_isend_irecv(ops):
@@ -82,54 +85,54 @@ def mirror_exchange(local_tensor: torch.Tensor) -> torch.Tensor:
     return received
 
 
-def gather_full(local_tensor: torch.Tensor, split_axis: int, split_axis_global_size: int) -> torch.Tensor:
-    """Collect every rank's local slab onto rank 0 only, concatenated along `split_axis`.
+def gather_full(localTensor: torch.Tensor, splitAxis: int, splitAxisGlobalSize: int) -> torch.Tensor:
+    """Collect every rank's local slab onto rank 0 only, concatenated along `splitAxis`.
     Implemented with point-to-point send/recv rather than a collective gather, since
     gather/scatter support is not guaranteed across `torch.distributed` backends."""
-    rank, world_size = _rank_and_world_size()
-    if world_size == 1:
-        return local_tensor
+    rank, worldSize = _rank_and_world_size()
+    if worldSize == 1:
+        return localTensor
 
     if rank != 0:
-        dist.send(local_tensor.contiguous(), dst=0)
-        return local_tensor
+        dist.send(localTensor.contiguous(), dst=0)
+        return localTensor
 
-    sizes = _split_sizes(split_axis_global_size, world_size)
-    chunks = [local_tensor]
-    for source in range(1, world_size):
-        shape = list(local_tensor.shape)
-        shape[split_axis] = sizes[source]
-        chunk = torch.empty(shape, dtype=local_tensor.dtype, device=local_tensor.device)
+    sizes = _split_sizes(splitAxisGlobalSize, worldSize)
+    chunks = [localTensor]
+    for source in range(1, worldSize):
+        shape = list(localTensor.shape)
+        shape[splitAxis] = sizes[source]
+        chunk = torch.empty(shape, dtype=localTensor.dtype, device=localTensor.device)
         dist.recv(chunk, src=source)
         chunks.append(chunk)
 
-    return torch.cat(chunks, dim=split_axis)
+    return torch.cat(chunks, dim=splitAxis)
 
 
 def scatter_full(
-    full_tensor: torch.Tensor | None,
-    local_shape: tuple[int, ...],
-    split_axis: int,
-    split_axis_global_size: int,
+    fullTensor: torch.Tensor | None,
+    localShape: tuple[int, ...],
+    splitAxis: int,
+    splitAxisGlobalSize: int,
     dtype: torch.dtype,
     device: str | torch.device,
 ) -> torch.Tensor:
     """Inverse of `gather_full`: rank 0 holds the full tensor and sends each rank its
-    local slab. `full_tensor` is ignored on every rank other than 0."""
-    rank, world_size = _rank_and_world_size()
-    if world_size == 1:
-        assert full_tensor is not None
-        return full_tensor
+    local slab. `fullTensor` is ignored on every rank other than 0."""
+    rank, worldSize = _rank_and_world_size()
+    if worldSize == 1:
+        assert fullTensor is not None
+        return fullTensor
 
     if rank != 0:
-        local_tensor = torch.empty(local_shape, dtype=dtype, device=device)
-        dist.recv(local_tensor, src=0)
-        return local_tensor
+        localTensor = torch.empty(localShape, dtype=dtype, device=device)
+        dist.recv(localTensor, src=0)
+        return localTensor
 
-    assert full_tensor is not None
-    sizes = _split_sizes(split_axis_global_size, world_size)
-    chunks = list(full_tensor.split(sizes, dim=split_axis))
-    for destination in range(1, world_size):
+    assert fullTensor is not None
+    sizes = _split_sizes(splitAxisGlobalSize, worldSize)
+    chunks = list(fullTensor.split(sizes, dim=splitAxis))
+    for destination in range(1, worldSize):
         dist.send(chunks[destination].contiguous(), dst=destination)
 
     return chunks[0].contiguous()

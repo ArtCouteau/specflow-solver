@@ -36,8 +36,8 @@ class Context:
 class DistributionContext:
     enabled: bool
     rank: int
-    world_size: int
-    local_rank: int
+    worldSize: int
+    localRank: int
 
     def __init__(self, context: Context) -> None:
         self.enabled = context.config.get('numerics/distributed', bool, False)
@@ -45,12 +45,12 @@ class DistributionContext:
         if self.enabled:
             torch.distributed.init_process_group(backend='nccl')
             self.rank = torch.distributed.get_rank()
-            self.world_size = torch.distributed.get_world_size()
-            self.local_rank = int(os.environ['LOCAL_RANK'])
+            self.worldSize = torch.distributed.get_world_size()
+            self.localRank = int(os.environ['LOCAL_RANK'])
         else:
             self.rank = 0
-            self.world_size = 1
-            self.local_rank = 0
+            self.worldSize = 1
+            self.localRank = 0
 
 
 class PhysicsContext:

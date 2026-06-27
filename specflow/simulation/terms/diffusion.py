@@ -6,6 +6,7 @@ from typing import Callable
 from . import term
 from .. import solution
 from ...core.numerics import context
+from ...core.numerics.decomposition import reduction
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
@@ -98,9 +99,11 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
 
     def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
-            self._physical_viscosity(
-                fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
-            ).max().item()
+            reduction.global_max(
+                self._physical_viscosity(
+                    fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
+                )
+            ).item()
             * dt
             / context.get().mesh.physical_grid_spacing()**2
         )

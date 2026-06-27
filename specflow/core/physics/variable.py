@@ -31,10 +31,7 @@ def _domain_shape() -> tuple[int, ...]:
     shape = (N,) * (DIM - 1) + (N // 2 + 1,)
 
     if context.get().distribution.enabled:
-        assert DIM >= 2, (
-            'Distributed mode requires grid/dimension >= 2: the sole domain axis of a '
-            '1D problem is the rfft axis and cannot be split'
-        )
+        assert DIM == 3, 'Distributed mode currently only supports 3D problems (grid/dimension == 3)'
         shape = (communication.local_size(N),) + shape[1:]
 
     return shape

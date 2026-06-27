@@ -16,7 +16,7 @@ class MemoryManager:
 
     def _resolve_device(self, device: str | torch.device) -> torch.device:
         if context.get().distribution.enabled:
-            return torch.device(f'cuda:{context.get().distribution.local_rank}')
+            return torch.device(f'cuda:{context.get().distribution.localRank}')
 
         return torch.device(device)
 

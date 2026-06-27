@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 
 from ...core.numerics import context
+from ...core.numerics.decomposition import reduction
 from ...core.numerics.operations import mask
 
 
@@ -32,13 +33,13 @@ class SpectralShells:
             dtype=context.get().config.get('numerics/precision/float', torch.dtype)
         )
 
-        totalN = mask.spherical(self.kShell[-1].item()).sum().item()
+        totalN = reduction.global_sum(mask.spherical(self.kShell[-1].item())).item()
         totalV = (4.0/3.0)*torch.pi*(self.kShell[-1]**3)
         rhoNode = totalN/totalV
 
         for i in range(1, self.kShell.size(0) - 1):
             shell = self.shell(i)
-            shellN = shell.sum().item()
+            shellN = reduction.global_sum(shell).item()
             shellV = (4.0/3.0)*torch.pi*(self.kShell[i+1]**3 - self.kShell[i]**3)
             smoothing[i] = (shellV/shellN)*rhoNode
 

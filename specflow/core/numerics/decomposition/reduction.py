@@ -9,7 +9,7 @@ Dim = int | tuple[int, ...] | None
 
 
 def _world_size() -> int:
-    return context.get().distribution.world_size
+    return context.get().distribution.worldSize
 
 
 def global_sum(tensor: torch.Tensor, dim: Dim = None) -> torch.Tensor:
@@ -21,22 +21,22 @@ def global_sum(tensor: torch.Tensor, dim: Dim = None) -> torch.Tensor:
 
 def global_mean(tensor: torch.Tensor, dim: Dim = None) -> torch.Tensor:
     if dim is None:
-        local_sum = tensor.sum()
-        local_count = tensor.numel()
+        localSum = tensor.sum()
+        localCount = tensor.numel()
     else:
-        local_sum = tensor.sum(dim=dim)
+        localSum = tensor.sum(dim=dim)
         axes = dim if isinstance(dim, tuple) else (dim,)
-        local_count = 1
+        localCount = 1
         for axis in axes:
-            local_count *= tensor.shape[axis]
+            localCount *= tensor.shape[axis]
 
     if _world_size() == 1:
-        return local_sum / local_count
+        return localSum / localCount
 
-    count = torch.tensor(local_count, dtype=local_sum.dtype, device=local_sum.device)
-    dist.all_reduce(local_sum, op=dist.ReduceOp.SUM)
+    count = torch.tensor(localCount, dtype=localSum.dtype, device=localSum.device)
+    dist.all_reduce(localSum, op=dist.ReduceOp.SUM)
     dist.all_reduce(count, op=dist.ReduceOp.SUM)
-    return local_sum / count
+    return localSum / count
 
 
 def global_max(tensor: torch.Tensor, dim: Dim = None) -> torch.Tensor:

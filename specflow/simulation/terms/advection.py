@@ -6,6 +6,7 @@ from typing import Callable
 from . import term
 from .. import solution
 from ...core.numerics import context
+from ...core.numerics.decomposition import reduction
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
@@ -27,7 +28,7 @@ class AdvectionTerm(term.Term):
 
     def _CFL_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
-            fourier.to_physical(variable.get(self.advectingField)).abs().max().item()
+            reduction.global_max(fourier.to_physical(variable.get(self.advectingField)).abs()).item()
             * dt
             / context.get().mesh.physical_grid_spacing()
         )
