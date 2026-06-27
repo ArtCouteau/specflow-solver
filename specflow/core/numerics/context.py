@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from ..physics import dealias
+import os
+import torch.distributed
 
 from . import io, memory, mesh
 from .operations import derivative
+from ..physics import dealias
 
 
 class Context:
@@ -12,6 +14,7 @@ class Context:
     memory: memory.MemoryManager
     mesh: mesh.Mesh
     physics: PhysicsContext
+    distribution: DistributionContext
 
     def __init__(self) -> None:
         self.io = io.IOInterface()
@@ -20,11 +23,34 @@ class Context:
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
 
+    def generate_distribution_context(self) -> None:
+        self.distribution = DistributionContext(self)
+
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
 
     def generate_physics_context(self) -> None:
         self.physics = PhysicsContext(self)
+
+
+class DistributionContext:
+    enabled: bool
+    rank: int
+    world_size: int
+    local_rank: int
+
+    def __init__(self, context: Context) -> None:
+        self.enabled = context.config.get('numerics/distributed', bool, False)
+
+        if self.enabled:
+            torch.distributed.init_process_group(backend='nccl')
+            self.rank = torch.distributed.get_rank()
+            self.world_size = torch.distributed.get_world_size()
+            self.local_rank = int(os.environ['LOCAL_RANK'])
+        else:
+            self.rank = 0
+            self.world_size = 1
+            self.local_rank = 0
 
 
 class PhysicsContext:
@@ -44,6 +70,7 @@ def init() -> None:
     global _context
     _context = Context()
     _context.read_user_configuration()
+    _context.generate_distribution_context()
     _context.generate_mesh()
     _context.generate_physics_context()
     print('Done')
