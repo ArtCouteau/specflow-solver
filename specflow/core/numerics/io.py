@@ -137,6 +137,7 @@ class UserConfiguration:
         self._info = context.get().io.yaml.read('config')
         self._add_base('grid/length', 2.0*torch.pi)
         self._add_base('numerics/device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        self._add_base('numerics/distributed', False)
         self._add_base('numerics/precision', 'double')
         self._add_base('numerics/random_seed', torch.rand(1).item())
 
