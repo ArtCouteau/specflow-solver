@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 
 from . import context
+from .decomposition import communication
 from ..physics import variable
 
 
@@ -40,26 +41,37 @@ class Mesh:
         return context.get().config.get('grid/length', float)/context.get().config.get('grid/N', int)
 
 
-def _construct_grid(dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
+def _construct_grid(dimFirst: torch.Tensor, dimMiddle: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:
     DIM: int = context.get().config.get('grid/dimension', int)
 
     if DIM == 1:
         _grid = dimLast.unsqueeze(0)
     elif DIM == 2:
-        _grid = torch.stack(torch.meshgrid(dim, dimLast, indexing="ij"))
+        _grid = torch.stack(torch.meshgrid(dimFirst, dimLast, indexing="ij"))
     elif DIM == 3:
-        _grid = torch.stack(torch.meshgrid(dim, dim, dimLast, indexing="ij"))
+        _grid = torch.stack(torch.meshgrid(dimFirst, dimMiddle, dimLast, indexing="ij"))
     else:
         raise ValueError(f'Invalid grid dimension: {DIM} (expected 1, 2 or 3)')
 
     return _grid
 
 
+def _local_split_axis(freq: torch.Tensor) -> torch.Tensor:
+    if not context.get().distribution.enabled:
+        return freq
+
+    start, end = communication.local_slice(freq.numel())
+    return freq[start:end]
+
+
 def construct_spectral_grid() -> torch.Tensor:
     N: int = context.get().config.get('grid/N', int)
 
+    dimFull = torch.fft.fftfreq(N, 1.0/N)    # type: ignore
+
     return _construct_grid(
-        torch.fft.fftfreq(N, 1.0/N),    # type: ignore
+        _local_split_axis(dimFull),
+        dimFull,
         torch.fft.rfftfreq(N, 1.0/N)    # type: ignore
     ).to(
         dtype=torch.int64,
@@ -70,8 +82,12 @@ def construct_spectral_grid() -> torch.Tensor:
 def construct_full_spectral_grid() -> torch.Tensor:
     N: int = context.get().config.get('grid/N', int)
 
-    tmp = torch.fft.fftfreq(N, 1.0/N)       # type: ignore
-    return _construct_grid(tmp, tmp).to(    # type: ignore
+    dimFull = torch.fft.fftfreq(N, 1.0/N)       # type: ignore
+    return _construct_grid(
+        _local_split_axis(dimFull),
+        dimFull,
+        dimFull
+    ).to(    # type: ignore
         dtype=torch.int64,
         device=context.get().config.get('numerics/device', str)
     )
@@ -83,7 +99,7 @@ def construct_physical_grid() -> torch.Tensor:
 
     tmp = L/N*torch.arange(0, N)
 
-    return _construct_grid(tmp, tmp).to(
+    return _construct_grid(tmp, tmp, tmp).to(
         dtype=context.get().config.get('numerics/precision/float', torch.dtype),
         device=context.get().config.get('numerics/device', str)
     )
