@@ -4,6 +4,7 @@ import enum
 import torch
 
 from ..numerics import context
+from ..numerics.decomposition import communication
 
 
 class Rank(enum.Enum):
@@ -27,7 +28,16 @@ def _domain_shape() -> tuple[int, ...]:
     N: int = context.get().config.get('grid/N', int)
     DIM: int = context.get().config.get('grid/dimension', int)
 
-    return (N,) * (DIM - 1) + (N // 2 + 1,)
+    shape = (N,) * (DIM - 1) + (N // 2 + 1,)
+
+    if context.get().distribution.enabled:
+        assert DIM >= 2, (
+            'Distributed mode requires grid/dimension >= 2: the sole domain axis of a '
+            '1D problem is the rfft axis and cannot be split'
+        )
+        shape = (communication.local_size(N),) + shape[1:]
+
+    return shape
 
 
 def field_shape(rank: Rank) -> tuple[int, ...]:
