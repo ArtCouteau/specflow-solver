@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 import torch
 
+from . import context
+
 
 def _mib(nBytes: int) -> str:
     return f'{nBytes / 1024 ** 2:.1f} MiB'
@@ -11,6 +13,12 @@ def _mib(nBytes: int) -> str:
 class MemoryManager:
     def __init__(self):
         self._buffers: dict[str, torch.Tensor] = {}
+
+    def _resolve_device(self, device: str | torch.device) -> torch.device:
+        if context.get().distribution.enabled:
+            return torch.device(f'cuda:{context.get().distribution.local_rank}')
+
+        return torch.device(device)
 
     def alloc(
             self,
@@ -22,7 +30,7 @@ class MemoryManager:
         if key in self._buffers:
             raise KeyError(f'Tensor "{key}" is already allocated; call free() first')
 
-        device = torch.device(device)
+        device = self._resolve_device(device)
         if device.type == 'cuda':
             required = math.prod(shape) * torch.empty(0, dtype=dtype).element_size()
             free, _ = torch.cuda.mem_get_info(device)
