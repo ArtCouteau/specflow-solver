@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+from typing import Callable
 
 from . import term
 from .. import solution
@@ -15,6 +16,13 @@ class LESModelTerm(term.Term):
 
         if not self.rank.name == 'VECTOR':
             raise NotImplementedError()
+
+    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
+        return (
+            f'Diffusion/{self.equation}/{self.tag}',
+            context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
+            self._diffusion_number
+        )
 
     def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
