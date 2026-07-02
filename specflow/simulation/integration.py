@@ -29,7 +29,7 @@ class TimeIntegrator:
         _ratio = 1.25
         for key, limiter in self.limiters.items():
             _value = limiter.current(variable, self.dt)
-            print(f'Time step limiter: {key} = {_value:.5f}')
+            context.get().log.info(f'Time step limiter: {key} = {_value:.5f}')
             _ratio = min(_ratio, limiter.target/(_value + defs.SMALL))
 
         return max(0.8, min(1.25, _ratio))
@@ -45,7 +45,7 @@ class TimeIntegrator:
         if tag not in self.limiters:
             self.limiters[tag] = TimeStepLimiter(tag, target, func)
         else:
-            print(f'Time step limiter for "{tag}" already exists. Skipping')
+            context.get().log.warning(f'Time step limiter for "{tag}" already exists. Skipping')
 
         print(f'Added time step limiter "{tag}" (target = {target:.2f})')
 

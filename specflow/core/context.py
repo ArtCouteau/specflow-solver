@@ -45,7 +45,7 @@ _context: Context | None = None
 
 
 def init() -> None:
-    print('Hello world')
+    print('Initializing SPECFLOW solver')
     global _context
     _context = Context()
     _context.read_user_configuration()
