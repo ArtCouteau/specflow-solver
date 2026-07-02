@@ -5,7 +5,8 @@ import torch
 
 from . import term
 from .. import solution
-from ...core.numerics import context, sparse
+from ...core import context
+from ...core.numerics import sparse
 from ...core.physics import variable
 
 

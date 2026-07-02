@@ -5,7 +5,7 @@ from typing import Callable
 
 from . import term
 from .. import solution
-from ...core.numerics import context
+from ...core import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
@@ -17,7 +17,7 @@ class DiffusionTerm(term.Term):
 
     def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
         return (
-            f'Diffusion/{self.tag}',
+            f'Diffusion/{self.equation}/{self.tag}',
             context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
             self._diffusion_number
         )
