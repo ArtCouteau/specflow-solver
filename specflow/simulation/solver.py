@@ -49,6 +49,7 @@ class Solver:
 
     def _setup(self):
         self.integrator.setup()
+        self._add_time_step_limiters()
 
     def _step(self):
         self.integrator.advance()
