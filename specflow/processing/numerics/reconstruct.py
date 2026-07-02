@@ -1,5 +1,5 @@
 
-from ...core.numerics import context
+from ...core import context
 from ...simulation import equation
 
 

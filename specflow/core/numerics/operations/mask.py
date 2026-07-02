@@ -1,7 +1,8 @@
 import torch
 
 from . import norm
-from .. import context, mesh
+from .. import mesh
+from ... import context
 
 
 def shell(lower: float, upper: float) -> torch.Tensor:

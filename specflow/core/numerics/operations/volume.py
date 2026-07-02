@@ -1,6 +1,7 @@
 import torch
 
-from .. import context, dims
+from .. import dims
+from ... import context
 
 
 def sum(field: torch.Tensor) -> torch.Tensor:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 import torch
 
-from ..numerics import context
+from .. import context
 
 
 class Rank(enum.Enum):

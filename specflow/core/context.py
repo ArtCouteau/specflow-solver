@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from ..physics import dealias
+import logging
 
-from . import io, memory, mesh
-from .operations import derivative
+from .physics import dealias
+from .numerics import io, log, memory, mesh
+from .numerics.operations import derivative
 
 
 class Context:
     config: io.UserConfiguration
     io: io.IOInterface
+    log: logging.Logger
     memory: memory.MemoryManager
     mesh: mesh.Mesh
     physics: PhysicsContext
@@ -19,6 +21,9 @@ class Context:
 
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
+
+    def configure_logger(self) -> None:
+        self.log = log.configure()
 
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()
@@ -40,10 +45,11 @@ _context: Context | None = None
 
 
 def init() -> None:
-    print('Hello world')
+    print('Initializing SPECFLOW solver')
     global _context
     _context = Context()
     _context.read_user_configuration()
+    _context.configure_logger()
     _context.generate_mesh()
     _context.generate_physics_context()
     print('Done')

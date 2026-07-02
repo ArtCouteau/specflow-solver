@@ -1,6 +1,7 @@
 import torch
 
-from .. import context, dims
+from .. import dims
+from ... import context
 from ...physics import variable
 
 

@@ -6,7 +6,7 @@ from typing import Literal
 
 from . import control, equation, integration, solution
 from ..core import defs
-from ..core.numerics import context
+from ..core import context
 from ..core.numerics.operations import fourier
 from ..core.physics import variable
 
@@ -49,6 +49,7 @@ class Solver:
 
     def _setup(self):
         self.integrator.setup()
+        self._add_time_step_limiters()
 
     def _step(self):
         self.integrator.advance()
@@ -94,7 +95,7 @@ class Solver:
     def run(self) -> None:
         print('\n\nStarting time loop\n')
 
-        print('Clean output directory')
+        context.get().log.info('Clean output directory')
         context.get().io.output.make_or_clean_dir('output')
 
         self._setup()
@@ -104,12 +105,12 @@ class Solver:
 
         _t0 = time.perf_counter()
         while self.control.time.advance():
-            print(f'Step {self.control.time.step}')
-            print(f'Time = {context.get().io.output.timestamp(self.control.time.current)}')
+            print(f'\nStep {self.control.time.step}')
+            print(f'  Time = {context.get().io.output.timestamp(self.control.time.current)}')
 
             self.integrator.update(self.variable)
             self.control.time.clamp_dt()
-            print(f'Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')
+            print(f'  Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')
 
             self._step()
             self.control.time.update()
@@ -119,6 +120,6 @@ class Solver:
                 self.control.time.save.deactivate()
 
         _t1 = time.perf_counter()
-        print(f'Simulation has successfully finished')
-        print(f'Elapsed time: {(_t1 - _t0)/3600:.2f} hours')
-        print(f'Average time step duration: {(_t1 - _t0)/self.control.time.step:.3f} seconds')
+        print(f'\nSimulation has successfully finished')
+        context.get().log.info(f'Elapsed time: {(_t1 - _t0)/3600:.2f} hours')
+        context.get().log.info(f'Average time step duration: {(_t1 - _t0)/self.control.time.step:.3f} seconds')

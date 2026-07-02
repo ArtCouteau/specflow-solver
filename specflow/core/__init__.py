@@ -1,3 +1,4 @@
-from .numerics import init
+from .context import init
+from . import context
 
-__all__ = ['init']
+__all__ = ['init', 'context']

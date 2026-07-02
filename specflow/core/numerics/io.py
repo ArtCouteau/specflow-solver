@@ -9,8 +9,7 @@ from typing import Any, Literal
 import torch
 import yaml
 
-from . import context
-from .. import defs
+from .. import context, defs
 
 
 class IOInterface(object):
