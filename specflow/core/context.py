@@ -49,6 +49,7 @@ def init() -> None:
     global _context
     _context = Context()
     _context.read_user_configuration()
+    _context.configure_logger()
     _context.generate_mesh()
     _context.generate_physics_context()
     print('Done')
