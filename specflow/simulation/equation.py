@@ -4,8 +4,8 @@ import torch
 
 from . import solution
 from .terms import term
+from ..core import context
 from ..core.registry import Registry
-from ..core.numerics import context
 from ..core.numerics.operations import projection, rank
 from ..core.physics import variable
 

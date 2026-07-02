@@ -1,7 +1,8 @@
 import torch
 
 from ...numerics import shell
-from ....core.numerics import context, dims
+from ....core import context
+from ....core.numerics import dims
 from ....core.numerics.operations import algebra, volume
 
 

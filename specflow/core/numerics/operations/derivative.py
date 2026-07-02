@@ -2,7 +2,7 @@ import torch
 from typing import Callable
 
 from . import algebra
-from .. import context
+from ... import context
 
 
 Gradient = Callable[[torch.Tensor], torch.Tensor]

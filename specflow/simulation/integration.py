@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 from . import solution, solver
-from ..core import defs
-from ..core.numerics import context
+from ..core import context, defs
 from ..core.registry import Registry
 
 

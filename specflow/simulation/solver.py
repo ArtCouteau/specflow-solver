@@ -6,7 +6,7 @@ from typing import Literal
 
 from . import control, equation, integration, solution
 from ..core import defs
-from ..core.numerics import context
+from ..core import context
 from ..core.numerics.operations import fourier
 from ..core.physics import variable
 

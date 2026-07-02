@@ -1,8 +1,8 @@
 import torch
 
 from . import triad
-from ....core import defs
-from ....core.numerics import context, dims
+from ....core import context, defs
+from ....core.numerics import dims
 from ....core.numerics.operations import algebra, fourier, norm
 from ....core.physics import fields
 

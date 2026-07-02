@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 from . import solver
-from ..core.numerics import context
+from ..core import context
 
 
 class SimulationControls:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from ...core.numerics import context
+from ...core import context
 from ...core.numerics.operations import mask
 
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..physics import dealias
+from .physics import dealias
 
-from . import io, memory, mesh
-from .operations import derivative
+from .numerics import io, memory, mesh
+from .numerics.operations import derivative
 
 
 class Context:

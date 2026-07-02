@@ -1,6 +1,6 @@
 import torch
 
-from . import context
+from .. import context
 
 VECTOR = 0
 TENSOR = (0, 1)

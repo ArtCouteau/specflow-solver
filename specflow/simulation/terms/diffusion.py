@@ -5,7 +5,7 @@ from typing import Callable
 
 from . import term
 from .. import solution
-from ...core.numerics import context
+from ...core import context
 from ...core.numerics.operations import algebra, derivative, fourier
 from ...core.physics import fields, variable
 
