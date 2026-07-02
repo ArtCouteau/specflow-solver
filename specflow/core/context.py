@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from .physics import dealias
+import logging
 
-from .numerics import io, memory, mesh
+from .physics import dealias
+from .numerics import io, log, memory, mesh
 from .numerics.operations import derivative
 
 
 class Context:
     config: io.UserConfiguration
     io: io.IOInterface
+    log: logging.Logger
     memory: memory.MemoryManager
     mesh: mesh.Mesh
     physics: PhysicsContext
@@ -19,6 +21,9 @@ class Context:
 
     def read_user_configuration(self) -> None:
         self.config = io.UserConfiguration()
+
+    def configure_logger(self) -> None:
+        self.log = log.configure()
 
     def generate_mesh(self) -> None:
         self.mesh = mesh.Mesh()

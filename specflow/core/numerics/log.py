@@ -1,10 +1,10 @@
 
 import logging
 
-
-def debug(message: str) -> None:
-    logging.debug(message)
+from .. import context
 
 
-def warning(message: str) -> None:
-    logging.warning(message)
+def configure() -> logging.Logger:
+    logging.basicConfig(level=context.get().config.get('numerics/logging', str, 'INFO').upper())
+
+    return logging.getLogger('SPECFLOW')
