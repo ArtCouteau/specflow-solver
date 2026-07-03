@@ -52,7 +52,7 @@ class LESModelTerm(term.Term):
         return {
             'eddyViscosity': fourier.to_spectral(
                 self._physical_eddy_viscosity(
-                    fields.spectral.velocity.strain_rate_tensor(variable.get('velocity'))
+                    fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
                 )
             )
         }

@@ -122,7 +122,7 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
         return {
             'viscosity': fourier.to_spectral(
                 self._physical_viscosity(
-                    fields.spectral.velocity.strain_rate_tensor(variable.get('velocity'))
+                    fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
                 )
             )
         }
