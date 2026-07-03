@@ -1,3 +1,3 @@
-from . import advection, diffusion, forcing
+from . import advection, diffusion, les, forcing
 
-__all__ = ['advection', 'diffusion', 'forcing']
+__all__ = ['advection', 'diffusion', 'les', 'forcing']

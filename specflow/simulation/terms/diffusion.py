@@ -94,8 +94,6 @@ class GeneralizedNewtonianDiffusionTerm(DiffusionTerm):
         else:
             raise NotImplementedError()
 
-        self.diffusivity = context.get().config.get(f'equations/{self.equation}/terms/{tag}/diffusivity', float)
-
     def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
         return (
             self._physical_viscosity(
