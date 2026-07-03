@@ -67,7 +67,7 @@ class LESModelTerm(term.Term):
 
 
 @term.TermRegistry.register('LES/Smagorinsky')
-class GeneralizedNewtonianPowerLawDiffusionTerm(LESModelTerm):
+class SmagorinskyLESModelTerm(LESModelTerm):
     constant: float
     filterWidth: float
 
