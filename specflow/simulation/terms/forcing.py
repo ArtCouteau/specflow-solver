@@ -31,7 +31,7 @@ class OrnsteinUhlenbeckForcingTerm(term.Term):
         self.mapping = sparse.compute_Hermitian_symmetric_mapping(self.indices)
         self.coefficients = self._init_coefficients().to(device=context.get().config.get('numerics/device', str))
 
-        self.previousTime = 0.0
+        self.previousTime = context.get().config.get('time/start', str)
 
     def _init_coefficients(self) -> torch.Tensor:
         if context.get().config.get('time/restart', bool):
