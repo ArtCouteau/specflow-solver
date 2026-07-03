@@ -113,7 +113,7 @@ class Solver:
         print('\n\nStarting time loop\n')
 
         context.get().log.info('Clean output directory')
-        context.get().io.output.make_or_clean_dir('output')
+        context.get().io.output.make_dir('output')
 
         self._setup()
 
