@@ -31,15 +31,32 @@ class Solver:
         self._init_variable()
 
     def _init_variable(self):
-        self.variable = solution.SolutionVariable({
-            eq.variable: context.get().memory.alloc(
-                f'solution/{eq.variable}',
-                variable.field_shape(eq.rank),
-                dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
-                device=context.get().config.get('numerics/device', str)
-            ) for eq in self.equations.values()
-        })
-        self.variable.zero_()
+        if context.get().config.get('time/restart', bool):
+            self.variable = (
+                solution.SolutionVariable(
+                    {
+                        eq.variable: context.get().io.h5.read_tensor(
+                            f'output/{context.get().io.output.timestamp(context.get().config.get("time/start", float))}'
+                            f'/simulation',
+                            f'fields/{eq.variable}',
+                            device=context.get().config.get('numerics/device', str)
+                        )
+                        for eq in self.equations.values()
+                    }
+                )
+            )
+        else:
+            self.variable = solution.SolutionVariable(
+                {
+                    eq.variable: context.get().memory.alloc(
+                        f'solution/{eq.variable}',
+                        variable.field_shape(eq.rank),
+                        dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
+                        device=context.get().config.get('numerics/device', str)
+                    ) for eq in self.equations.values()
+                }
+            )
+            self.variable.zero_()
 
     def _add_time_step_limiters(self):
         for eq in self.equations.values():
