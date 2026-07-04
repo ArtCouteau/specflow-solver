@@ -26,12 +26,6 @@ def dissipation_rate(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
     )
 
 
-def residual_dissipation_rate(velocity: torch.Tensor, eddyViscosity: torch.Tensor) -> torch.Tensor:
-    return volume.mean(
-        fields.physical.les.residual_dissipation(velocity, eddyViscosity)
-    )
-
-
 def total_enstrophy(velocity: torch.Tensor) -> torch.Tensor:
     return volume.mean(
         fields.physical.velocity.enstrophy(velocity)
