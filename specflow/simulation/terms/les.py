@@ -77,7 +77,7 @@ class SmagorinskyLESModelTerm(LESModelTerm):
         self.constant = context.get().config.get(f'equations/{self.equation}/terms/{tag}/constant', float, 0.12)
         self.filterWidth = context.get().mesh.physical_grid_spacing()
 
-    def _physical_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
+    def _physical_eddy_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
         return (
             (self.constant*self.filterWidth)**2
             * fields.physical.velocity.rate_of_strain(physicalStrainRateTensor)
