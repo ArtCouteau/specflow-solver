@@ -1,3 +1,3 @@
-from . import HIT
+from . import HIT, LES
 
-__all__ = ['HIT']
+__all__ = ['HIT', 'LES']
