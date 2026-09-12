@@ -32,7 +32,7 @@ class TimeIntegrator:
             context.get().log.info(f'Time step limiter: {key} = {_value:.5f}')
             _ratio = min(_ratio, limiter.target/(_value + defs.SMALL))
 
-        return max(0.8, min(1.2, _ratio))
+        return min(1.2, _ratio)
 
     def setup(self): ...
 
