@@ -26,13 +26,13 @@ class TimeIntegrator:
         })
 
     def _get_time_step_target_ratio(self, variable: solution.SolutionVariable) -> float:
-        _ratio = 1.25
+        _ratio = 1.2
         for key, limiter in self.limiters.items():
             _value = limiter.current(variable, self.dt)
             context.get().log.info(f'Time step limiter: {key} = {_value:.5f}')
             _ratio = min(_ratio, limiter.target/(_value + defs.SMALL))
 
-        return max(0.8, min(1.25, _ratio))
+        return max(0.8, min(1.2, _ratio))
 
     def setup(self): ...
 
