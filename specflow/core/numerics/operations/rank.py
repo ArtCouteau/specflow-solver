@@ -1,5 +1,7 @@
 import torch
 
+from specflow.core.physics.quantity.field import Field, TSpace, Tensor
+
 from .. import dims
 from ... import context
 from ...physics import variable
@@ -8,10 +10,10 @@ from ...physics import variable
 def zeros(rank: variable.Rank) -> torch.Tensor:
     return torch.zeros(
         size=variable.field_shape(rank),
-        dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
-        device=context.get().config.get('numerics/device', str)
+        dtype=context.get().config.get("numerics/precision/complex", torch.dtype),
+        device=context.get().config.get("numerics/device", str),
     )
 
 
-def transpose(tensor: torch.Tensor) -> torch.Tensor:
-    return tensor.transpose(dims.TENSOR[0], dims.TENSOR[1])
+def transpose(field: Field[Tensor, TSpace]) -> Field[Tensor, TSpace]:
+    return field.with_data(field.data.transpose(field.component_axes[0], field.component_axes[1]))

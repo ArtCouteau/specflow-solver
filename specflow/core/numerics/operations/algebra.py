@@ -1,43 +1,35 @@
-import torch
-from typing import Callable
-
-from . import rank
-from .. import dims
-
-InterRankOperation = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+from specflow.core.physics.quantity.field import Field, Scalar, Tensor, TSpace, Vector
 
 
-def cross_vector_vector(vectorA: torch.Tensor, vectorB: torch.Tensor) -> torch.Tensor:
-    return vectorA.cross(vectorB, dim=dims.VECTOR)
+def cross(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
+    return a.with_data(a.data.cross(b.data, dim=a.component_axes[0]))
 
 
-def inner_vector_vector(vectorA: torch.Tensor, vectorB: torch.Tensor) -> torch.Tensor:
-    return (vectorA*vectorB).sum(dim=dims.VECTOR)
+def inner_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
+    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, a.dimension)
 
 
-def inner_vector_tensor(vector: torch.Tensor, tensor: torch.Tensor) -> torch.Tensor:
-    return (vector*rank.transpose(tensor)).sum(dim=1)
+def inner_vector_tensor(a: Field[Vector, TSpace], b: Field[Tensor, TSpace]) -> Field[Vector, TSpace]:
+    return a.with_data((a.data.unsqueeze(b.component_axes[1]) * b.data).sum(dim=b.component_axes[0]))
 
 
-def inner_tensor_tensor(tensorA: torch.Tensor, tensorB: torch.Tensor) -> torch.Tensor:
-    return (tensorA*tensorB).sum(dim=dims.TENSOR)
+def inner_tensor_tensor(a: Field[Tensor, TSpace], b: Field[Tensor, TSpace]) -> Field[Scalar, TSpace]:
+    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, a.dimension)
 
 
-def outer_vector_vector(vectorA: torch.Tensor, vectorB: torch.Tensor) -> torch.Tensor:
-    return vectorA.unsqueeze(1)*vectorB.unsqueeze(0)
+def outer_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Tensor, TSpace]:
+    return Field(
+        a.data.unsqueeze(a.component_axes[0] + 1) * b.data.unsqueeze(a.component_axes[0]), Tensor, a.space, a.dimension
+    )
 
 
-def mul_scalar_vector(scalar: torch.Tensor, vector: torch.Tensor) -> torch.Tensor:
-    return scalar*vector
+def mul_scalar_vector(a: Field[Scalar, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
+    return b.with_data(a.data.unsqueeze(b.component_axes[0]) * b.data)
 
 
-def mul_scalar_tensor(scalar: torch.Tensor, tensor: torch.Tensor) -> torch.Tensor:
-    return scalar*tensor
+def mul_scalar_tensor(a: Field[Scalar, TSpace], b: Field[Tensor, TSpace]) -> Field[Tensor, TSpace]:
+    return b.with_data(a.data.unsqueeze(b.component_axes[0]).unsqueeze(b.component_axes[1]) * b.data)
 
 
-def mul_tensor_tensor(tensorA: torch.Tensor, tensorB: torch.Tensor) -> torch.Tensor:
-    return tensorA*tensorB
-
-
-def matmul_tensor_vector(tensor: torch.Tensor, vector: torch.Tensor) -> torch.Tensor:
-    return (tensor*vector).sum(dim=1)
+def matmul_tensor_vector(a: Field[Tensor, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
+    return b.with_data(a.data * b.data.unsqueeze(a.component_axes[0]).sum(a.component_axes[1]))
