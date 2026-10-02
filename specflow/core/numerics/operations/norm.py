@@ -1,19 +1,13 @@
-import torch
-
-from .. import dims
+from specflow.core.physics.quantity.field import Field, Scalar, Tensor, TSpace, Vector
 
 
-def square_l2_norm_scalar(data: torch.Tensor) -> torch.Tensor:
-    return (data.abs()**2)
+def l2_norm(field: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
+    return Field(square_l2_norm(field).data.sqrt(), Scalar, field.space, field.dimension)
 
 
-def l2_norm(data: torch.Tensor) -> torch.Tensor:
-    return square_l2_norm(data).sqrt()
+def square_l2_norm(field: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
+    return Field((field.data.abs() ** 2).sum(dim=field.component_axes), Scalar, field.space, field.dimension)
 
 
-def square_l2_norm(data: torch.Tensor) -> torch.Tensor:
-    return (data.abs()**2).sum(dim=dims.VECTOR)
-
-
-def square_frobenius_norm(data: torch.Tensor) -> torch.Tensor:
-    return (data.abs()**2).sum(dim=dims.TENSOR)
+def square_frobenius_norm(field: Field[Tensor, TSpace]) -> Field[Scalar, TSpace]:
+    return Field((field.data.abs() ** 2).sum(dim=field.component_axes), Scalar, field.space, field.dimension)
