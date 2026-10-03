@@ -1,5 +1,3 @@
-import torch
-
 from specflow.core.numerics.mesh import Mesh
 from specflow.core.physics.quantity.field import Field
 from specflow.core.physics.quantity.quantity import Scalar, Spectral, Tensor, Vector
@@ -8,11 +6,11 @@ from . import algebra
 
 
 def nabla(mesh: Mesh) -> Field[Vector, Spectral]:
-    return Field((1.0j * mesh.k).to(dtype=torch.complex128), Vector, Spectral, 3, 3)
+    return 1.0j * mesh.k
 
 
 def nabla_square(mesh: Mesh) -> Field[Scalar, Spectral]:
-    return Field((-mesh.k2).to(dtype=torch.float64), Scalar, Spectral, 1, 3)
+    return -mesh.k2
 
 
 def curl_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
