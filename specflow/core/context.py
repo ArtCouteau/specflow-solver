@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 
+from .numerics.backend import memory
 from .physics import dealias
-from .numerics import io, log, memory, mesh
+from .numerics import io, log, mesh
 from .numerics.operations import derivative
 
 
@@ -37,7 +38,7 @@ class PhysicsContext:
     derivative: derivative.DerivativeOperators
 
     def __init__(self, context: Context) -> None:
-        self.dealias = dealias.DealiasRegistry.get(context.config.get('schemes/dealiasing', str))()
+        self.dealias = dealias.DealiasRegistry.get(context.config.get("schemes/dealiasing", str))()
         self.derivative = derivative.DerivativeOperators()
 
 
@@ -45,14 +46,14 @@ _context: Context | None = None
 
 
 def init() -> None:
-    print('Initializing SPECFLOW solver')
+    print("Initializing SPECFLOW solver")
     global _context
     _context = Context()
     _context.read_user_configuration()
     _context.configure_logger()
     _context.generate_mesh()
     _context.generate_physics_context()
-    print('Done')
+    print("Done")
 
 
 def get() -> Context:
