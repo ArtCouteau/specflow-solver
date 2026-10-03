@@ -1,29 +1,28 @@
 from __future__ import annotations
 
-import torch
+from abc import ABC, abstractmethod
+from typing import override
 
-from . import algebra, derivative
-from ... import context
+from specflow.core.numerics.mesh import Mesh
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Spectral, Vector
+
 from ...registry import Registry
+from . import algebra
 
 
-class Projector:
-    def apply(self, vector: torch.Tensor) -> torch.Tensor: ...
+class Projector(ABC):
+    @abstractmethod
+    def apply(self, mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]: ...
 
 
-class ProjectorRegistry(Registry[Projector]):
-    pass
-
-
-@ProjectorRegistry.register("none")
-class NoneProjector(Projector):
-    def apply(self, vector: torch.Tensor) -> torch.Tensor:
-        return vector
+class ProjectorRegistry(Registry[Projector]): ...
 
 
 @ProjectorRegistry.register("divergenceFree")
 class DivergenceFreeProjector(Projector):
-    def apply(self, vector: torch.Tensor) -> torch.Tensor:
-        k = context.get().mesh.k
-
-        return vector - k * algebra.inner_vector_vector(k, vector) * (-derivative.inv_nabla_square())
+    @override
+    def apply(self, mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
+        return vector - algebra.mul_scalar_vector(
+            algebra.mul_scalar_scalar(algebra.inner_vector_vector(mesh.k, vector), (mesh.invk2)), mesh.k
+        )
