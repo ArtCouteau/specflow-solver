@@ -9,6 +9,7 @@ from specflow.core.physics.quantity.statistics import IntegralValue
 class ReductionBackend(ABC):
     @abstractmethod
     def sum(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]: ...
+
     @abstractmethod
     def mean(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]: ...
 
@@ -16,8 +17,8 @@ class ReductionBackend(ABC):
 class SerialReduction(ReductionBackend):
     @override
     def sum(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]:
-        return IntegralValue.from_field(field.data.sum(field.domain_axes), field)
+        return IntegralValue(field.data.sum(field.domain_axes), field.rank)
 
     @override
     def mean(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]:
-        return IntegralValue.from_field(field.data.mean(field.domain_axes), field)
+        return IntegralValue(field.data.mean(field.domain_axes), field.rank)

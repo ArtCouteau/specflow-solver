@@ -24,5 +24,9 @@ class DivergenceFreeProjector(Projector):
     @override
     def apply(self, mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
         return vector - algebra.mul_scalar_vector(
-            algebra.mul_scalar_scalar(algebra.inner_vector_vector(mesh.k, vector), (mesh.invk2)), mesh.k
+            algebra.mul_scalar_scalar(
+                algebra.inner_vector_vector(mesh.spectral.wavenumbers, vector),
+                mesh.spectral.inverseWavenumbersSquared,
+            ),
+            mesh.spectral.wavenumbers,
         )

@@ -6,11 +6,11 @@ from . import algebra
 
 
 def nabla(mesh: Mesh) -> Field[Vector, Spectral]:
-    return 1.0j * mesh.k
+    return 1.0j * mesh.spectral.wavenumbers
 
 
 def nabla_square(mesh: Mesh) -> Field[Scalar, Spectral]:
-    return -mesh.k2
+    return -mesh.spectral.wavenumbersSquared
 
 
 def curl_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
