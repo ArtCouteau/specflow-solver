@@ -43,10 +43,10 @@ class Field(Quantity, Generic[TRank, TSpace]):
     def __neg__(self) -> Field[TRank, TSpace]:
         return self.replace_data(-self.data)
 
-    def __mul__(self, c: float) -> Field[TRank, TSpace]:
+    def __mul__(self, c: complex) -> Field[TRank, TSpace]:
         return self.replace_data(c * self.data)
 
-    def __rmul__(self, c: float) -> Field[TRank, TSpace]:
+    def __rmul__(self, c: complex) -> Field[TRank, TSpace]:
         return self.__mul__(c)
 
     def replace_data(self, data: torch.Tensor) -> Field[TRank, TSpace]:
