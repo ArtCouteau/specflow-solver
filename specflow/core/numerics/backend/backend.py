@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Literal
 
@@ -14,6 +15,7 @@ from specflow.core.numerics.backend.transforms import TransformsBackend
 @dataclass(frozen=True)
 class NumericsBackend:
     io: IOInterface
+    logger: logging.Logger
     memory: MemoryManager
     parameters: NumericsParameters
     reduction: ReductionBackend
