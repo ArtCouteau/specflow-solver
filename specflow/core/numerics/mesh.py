@@ -20,8 +20,9 @@ class MeshLayout:
 
 @dataclass(frozen=True)
 class Mesh:
-    spectral: SpectralGrid
+    layout: MeshLayout
     physical: PhysicalGrid
+    spectral: SpectralGrid
 
 
 class SpectralGrid:
@@ -30,46 +31,52 @@ class SpectralGrid:
     inverseWavenumbersSquared: Field[Scalar, Spectral]
     rfftWeights: Field[Scalar, Spectral]
 
-    def __init__(self, layout: MeshLayout, numerics: NumericsBackend) -> None:
+    def __init__(self, mesh: Mesh, numerics: NumericsBackend) -> None:
         self.wavenumbers = Field(
             numerics.memory.alloc(
                 "mesh/spectral/wavenumbers",
-                (layout.DIMENSION,) + _domain_shape(layout),
+                (mesh.layout.DIMENSION,) + _domain_shape(mesh.layout),
                 dtype=numerics.parameters.precision.FLOAT,
                 device=numerics.parameters.device,
             ),
             Vector,
             Spectral,
-            layout.DIMENSION,
-            layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            numerics,
+            mesh,
         )
-        self.wavenumbers.data.copy_(2.0 * torch.pi / layout.LENGTH * self._construct_grid(layout, numerics))
+        self.wavenumbers.data.copy_(2.0 * torch.pi / mesh.layout.LENGTH * self._construct_grid(mesh.layout, numerics))
 
         self.wavenumbersSquared = Field(
             numerics.memory.alloc(
                 "mesh/spectral/wavenumbersSquared",
-                _domain_shape(layout),
+                _domain_shape(mesh.layout),
                 dtype=numerics.parameters.precision.FLOAT,
                 device=numerics.parameters.device,
             ),
             Scalar,
             Spectral,
             1,
-            layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            numerics,
+            mesh,
         )
         self.wavenumbersSquared.copy_(norm.square_l2_norm(self.wavenumbers))
 
         self.inverseWavenumbersSquared = Field(
             numerics.memory.alloc(
                 "mesh/spectral/inverseWavenumbersSquared",
-                _domain_shape(layout),
+                _domain_shape(mesh.layout),
                 dtype=numerics.parameters.precision.FLOAT,
                 device=numerics.parameters.device,
             ),
             Scalar,
             Spectral,
             1,
-            layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            numerics,
+            mesh,
         )
         self.wavenumbersSquared.data.copy_(
             torch.where(self.wavenumbersSquared.data > 0, 1 / self.wavenumbersSquared.data, 0.0)
@@ -86,20 +93,22 @@ class SpectralGrid:
 class PhysicalGrid:
     grid: Field[Vector, Physical]
 
-    def __init__(self, layout: MeshLayout, numerics: NumericsBackend) -> None:
+    def __init__(self, mesh: Mesh, numerics: NumericsBackend) -> None:
         self.grid = Field(
             numerics.memory.alloc(
                 "mesh/physical/grid",
-                (layout.DIMENSION,) + _domain_shape(layout),
+                (mesh.layout.DIMENSION,) + _domain_shape(mesh.layout),
                 dtype=numerics.parameters.precision.FLOAT,
                 device=numerics.parameters.device,
             ),
             Vector,
             Physical,
-            layout.DIMENSION,
-            layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            mesh.layout.DIMENSION,
+            numerics,
+            mesh,
         )
-        self.grid.data.copy_(2.0 * torch.pi / layout.LENGTH * self._construct_grid(layout, numerics))
+        self.grid.data.copy_(2.0 * torch.pi / mesh.layout.LENGTH * self._construct_grid(mesh.layout, numerics))
 
     def _construct_grid(self, layout: MeshLayout, numerics: NumericsBackend) -> torch.Tensor:
         tmp = layout.LENGTH / layout.N * torch.arange(0, layout.N)
