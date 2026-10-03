@@ -1,4 +1,5 @@
-from specflow.core.physics.quantity.field import Field, Scalar, Tensor, TSpace, Vector
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Scalar, Tensor, TSpace, Vector
 
 
 def cross_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:

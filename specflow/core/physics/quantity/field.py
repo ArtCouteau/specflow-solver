@@ -1,36 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, Literal, TypeVar
+from typing import Generic, Literal
 
 import torch
 
-from specflow.core.physics.quantity.quantity import Quantity
-
-
-class Rank: ...
-
-
-class Scalar(Rank): ...
-
-
-class Vector(Rank): ...
-
-
-class Tensor(Rank): ...
-
-
-class Space: ...
-
-
-class Physical(Space): ...
-
-
-class Spectral(Space): ...
-
-
-TRank = TypeVar("TRank", bound=Rank)
-TSpace = TypeVar("TSpace", bound=Space)
+from specflow.core.physics.quantity.quantity import Quantity, Tensor, TRank, TSpace, Vector
 
 
 @dataclass(frozen=True, eq=False)
