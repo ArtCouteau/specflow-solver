@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Generic, Literal
 
 import torch
@@ -12,6 +12,7 @@ from specflow.core.physics.quantity.quantity import Quantity, Tensor, TRank, TSp
 class Field(Quantity, Generic[TRank, TSpace]):
     rank: type[TRank]
     space: type[TSpace]
+    component: Literal[1, 2, 3]
     dimension: Literal[1, 2, 3]
 
     @property
@@ -28,28 +29,28 @@ class Field(Quantity, Generic[TRank, TSpace]):
         return tuple(range(-self.dimension, 0))
 
     def __add__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
-        return self.with_data(self.data + other.data)
+        return self.replace_data(self.data + other.data)
 
     def __radd__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
         return self.__add__(other)
 
     def __sub__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
-        return self.with_data(self.data - other.data)
+        return self.replace_data(self.data - other.data)
 
     def __rsub__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
         return self.__sub__(other)
 
     def __neg__(self) -> Field[TRank, TSpace]:
-        return self.with_data(-self.data)
+        return self.replace_data(-self.data)
 
     def __mul__(self, c: float) -> Field[TRank, TSpace]:
-        return self.with_data(c * self.data)
+        return self.replace_data(c * self.data)
 
     def __rmul__(self, c: float) -> Field[TRank, TSpace]:
         return self.__mul__(c)
 
-    def with_data(self, data: torch.Tensor) -> Field[TRank, TSpace]:
-        return Field(data, self.rank, self.space, self.dimension)
+    def replace_data(self, data: torch.Tensor) -> Field[TRank, TSpace]:
+        return replace(self, data=data)
 
     def add_(self, other: Field[TRank, TSpace]) -> None:
         self.data.add_(other.data)

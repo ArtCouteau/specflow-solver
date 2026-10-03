@@ -16,4 +16,4 @@ def zeros(rank: variable.Rank) -> torch.Tensor:
 
 
 def transpose(field: Field[Tensor, TSpace]) -> Field[Tensor, TSpace]:
-    return field.with_data(field.data.transpose(field.component_axes[0], field.component_axes[1]))
+    return field.replace_data(field.data.transpose(field.component_axes[0], field.component_axes[1]))
