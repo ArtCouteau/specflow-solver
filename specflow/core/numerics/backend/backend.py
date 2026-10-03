@@ -5,12 +5,17 @@ from typing import Literal
 
 import torch
 
+from specflow.core.numerics.backend.reduction import ReductionBackend
+from specflow.core.numerics.backend.transforms import TransformsBackend
 from specflow.core.numerics.memory import MemoryManager
 
 
+@dataclass(frozen=True)
 class NumericsBackend:
     memory: MemoryManager
     parameters: NumericsParameters
+    reduction: ReductionBackend
+    transforms: TransformsBackend
 
 
 @dataclass(frozen=True)
