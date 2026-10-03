@@ -28,6 +28,10 @@ def outer_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> F
     )
 
 
+def mul_scalar_scalar(a: Field[Scalar, TSpace], b: Field[Scalar, TSpace]) -> Field[Scalar, TSpace]:
+    return b.replace_data(a.data * b.data)
+
+
 def mul_scalar_vector(a: Field[Scalar, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
     return b.replace_data(a.data.unsqueeze(b.component_axes[0]) * b.data)
 
