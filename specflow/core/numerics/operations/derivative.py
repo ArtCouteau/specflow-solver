@@ -13,29 +13,29 @@ def nabla_square(mesh: Mesh) -> Field[Scalar, Spectral]:
     return -mesh.spectral.wavenumbersSquared
 
 
-def curl_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
-    return algebra.cross_vector_vector(nabla(mesh), vector)
+def curl_vector(vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.cross_vector_vector(nabla(vector.mesh), vector)
 
 
-def divergence_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Scalar, Spectral]:
-    return algebra.inner_vector_vector(nabla(mesh), vector)
+def divergence_vector(vector: Field[Vector, Spectral]) -> Field[Scalar, Spectral]:
+    return algebra.inner_vector_vector(nabla(vector.mesh), vector)
 
 
-def divergence_tensor(mesh: Mesh, tensor: Field[Tensor, Spectral]) -> Field[Vector, Spectral]:
-    return algebra.inner_vector_tensor(nabla(mesh), tensor)
+def divergence_tensor(tensor: Field[Tensor, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.inner_vector_tensor(nabla(tensor.mesh), tensor)
 
 
-def gradient_scalar(mesh: Mesh, scalar: Field[Scalar, Spectral]) -> Field[Vector, Spectral]:
-    return algebra.mul_scalar_vector(scalar, nabla(mesh))
+def gradient_scalar(scalar: Field[Scalar, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.mul_scalar_vector(scalar, nabla(scalar.mesh))
 
 
-def gradient_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Tensor, Spectral]:
-    return algebra.outer_vector_vector(nabla(mesh), vector)
+def gradient_vector(vector: Field[Vector, Spectral]) -> Field[Tensor, Spectral]:
+    return algebra.outer_vector_vector(nabla(vector.mesh), vector)
 
 
-def laplacian_scalar(mesh: Mesh, scalar: Field[Scalar, Spectral]) -> Field[Scalar, Spectral]:
-    return algebra.mul_scalar_scalar(nabla_square(mesh), scalar)
+def laplacian_scalar(scalar: Field[Scalar, Spectral]) -> Field[Scalar, Spectral]:
+    return algebra.mul_scalar_scalar(nabla_square(scalar.mesh), scalar)
 
 
-def laplacian_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
-    return algebra.mul_scalar_vector(nabla_square(mesh), vector)
+def laplacian_vector(vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.mul_scalar_vector(nabla_square(vector.mesh), vector)

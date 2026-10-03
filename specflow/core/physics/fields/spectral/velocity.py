@@ -1,25 +1,19 @@
-import torch
+from specflow.core.numerics.operations import derivative, norm, rank
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Scalar, Spectral, Tensor, Vector
 
-from ....numerics.operations import derivative, norm, rank
 
-
-def vorticity(velocity: torch.Tensor) -> torch.Tensor:
+def vorticity(velocity: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
     return derivative.curl_vector(velocity)
 
 
-def strain_rate_tensor(velocity: torch.Tensor) -> torch.Tensor:
-    return 0.5*(
-        derivative.gradient_vector(velocity)
-        + rank.transpose(derivative.gradient_vector(velocity))
-    )
+def strain_rate_tensor(velocity: Field[Vector, Spectral]) -> Field[Tensor, Spectral]:
+    return 0.5 * (derivative.gradient_vector(velocity) + rank.transpose(derivative.gradient_vector(velocity)))
 
 
-def rotation_rate_tensor(velocity: torch.Tensor) -> torch.Tensor:
-    return 0.5*(
-        derivative.gradient_vector(velocity)
-        - rank.transpose(derivative.gradient_vector(velocity))
-    )
+def rotation_rate_tensor(velocity: Field[Vector, Spectral]) -> Field[Tensor, Spectral]:
+    return 0.5 * (derivative.gradient_vector(velocity) - rank.transpose(derivative.gradient_vector(velocity)))
 
 
-def modal_kinetic_energy(velocity: torch.Tensor) -> torch.Tensor:
-    return 0.5*norm.square_l2_norm(velocity)
+def modal_kinetic_energy(velocity: Field[Vector, Spectral]) -> Field[Scalar, Spectral]:
+    return 0.5 * norm.square_l2_norm(velocity)

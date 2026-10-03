@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Generic, Literal
 
 import torch
 
+from specflow.core.numerics.backend.backend import NumericsBackend
+from specflow.core.numerics.mesh import Mesh
 from specflow.core.physics.quantity.quantity import Quantity, Tensor, TRank, TSpace, Vector
 
 
@@ -14,6 +16,8 @@ class Field(Quantity, Generic[TRank, TSpace]):
     space: type[TSpace]
     component: Literal[1, 2, 3]
     dimension: Literal[1, 2, 3]
+    backend: NumericsBackend = field(repr=False)
+    mesh: Mesh = field(repr=False)
 
     @property
     def component_axes(self: Field[Vector, TSpace] | Field[Tensor, TSpace]) -> tuple[int, ...]:
