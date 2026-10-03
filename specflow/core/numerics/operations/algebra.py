@@ -1,7 +1,7 @@
 from specflow.core.physics.quantity.field import Field, Scalar, Tensor, TSpace, Vector
 
 
-def cross(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
+def cross_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
     return a.with_data(a.data.cross(b.data, dim=a.component_axes[0]))
 
 
@@ -32,4 +32,4 @@ def mul_scalar_tensor(a: Field[Scalar, TSpace], b: Field[Tensor, TSpace]) -> Fie
 
 
 def matmul_tensor_vector(a: Field[Tensor, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
-    return b.with_data(a.data * b.data.unsqueeze(a.component_axes[0]).sum(a.component_axes[1]))
+    return b.with_data((a.data * b.data.unsqueeze(a.component_axes[0])).sum(dim=a.component_axes[1]))
