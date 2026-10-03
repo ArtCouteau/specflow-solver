@@ -1,68 +1,43 @@
 import torch
-from typing import Callable
+
+from specflow.core.numerics.mesh import Mesh
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Scalar, Spectral, Tensor, Vector
 
 from . import algebra
-from ... import context
 
 
-Gradient = Callable[[torch.Tensor], torch.Tensor]
-Laplacian = Callable[[torch.Tensor], torch.Tensor]
+def nabla(mesh: Mesh) -> Field[Vector, Spectral]:
+    return Field((1.0j * mesh.k).to(dtype=torch.complex128), Vector, Spectral, 3, 3)
 
 
-class DerivativeOperators:
-    nabla: torch.Tensor
-    nabla2: torch.Tensor
-    invNabla2: torch.Tensor
-
-    def __init__(self):
-        self.nabla = (
-            1.0j * context.get().mesh.k
-        ).to(context.get().config.get('numerics/precision/complex', torch.dtype))
-
-        self.nabla2 = (
-            - context.get().mesh.k2
-        ).to(context.get().config.get('numerics/precision/float', torch.dtype))
-
-        self.invNabla2 = (
-            - 1.0/torch.where(context.get().mesh.k2 == 0, 1, context.get().mesh.k2)
-        ).to(context.get().config.get('numerics/precision/float', torch.dtype))
+def nabla_square(mesh: Mesh) -> Field[Scalar, Spectral]:
+    return Field((-mesh.k2).to(dtype=torch.float64), Scalar, Spectral, 1, 3)
 
 
-def nabla() -> torch.Tensor:
-    return context.get().physics.derivative.nabla
+def curl_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.cross_vector_vector(nabla(mesh), vector)
 
 
-def nabla2() -> torch.Tensor:
-    return context.get().physics.derivative.nabla2
+def divergence_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Scalar, Spectral]:
+    return algebra.inner_vector_vector(nabla(mesh), vector)
 
 
-def inv_nabla2() -> torch.Tensor:
-    return context.get().physics.derivative.invNabla2
+def divergence_tensor(mesh: Mesh, tensor: Field[Tensor, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.inner_vector_tensor(nabla(mesh), tensor)
 
 
-def curl_vector(vector: torch.Tensor) -> torch.Tensor:
-    return algebra.cross_vector_vector(nabla(), vector)
+def gradient_scalar(mesh: Mesh, scalar: Field[Scalar, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.mul_scalar_vector(scalar, nabla(mesh))
 
 
-def divergence_vector(vector: torch.Tensor) -> torch.Tensor:
-    return algebra.inner_vector_vector(nabla(), vector)
+def gradient_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Tensor, Spectral]:
+    return algebra.outer_vector_vector(nabla(mesh), vector)
 
 
-def divergence_tensor(tensor: torch.Tensor) -> torch.Tensor:
-    return algebra.inner_vector_tensor(nabla(), tensor)
+def laplacian_scalar(mesh: Mesh, scalar: Field[Scalar, Spectral]) -> Field[Scalar, Spectral]:
+    return algebra.mul_scalar_scalar(nabla_square(mesh), scalar)
 
 
-def gradient_scalar(scalar: torch.Tensor) -> torch.Tensor:
-    return nabla()*scalar
-
-
-def gradient_vector(vector: torch.Tensor) -> torch.Tensor:
-    return algebra.outer_vector_vector(nabla(), vector)
-
-
-def laplacian_scalar(scalar: torch.Tensor) -> torch.Tensor:
-    return nabla2()*scalar
-
-
-def laplacian_vector(vector: torch.Tensor) -> torch.Tensor:
-    return nabla2()*vector
+def laplacian_vector(mesh: Mesh, vector: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
+    return algebra.mul_scalar_vector(nabla_square(mesh), vector)

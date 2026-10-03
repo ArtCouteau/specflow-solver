@@ -15,15 +15,15 @@ class ProjectorRegistry(Registry[Projector]):
     pass
 
 
-@ProjectorRegistry.register('none')
+@ProjectorRegistry.register("none")
 class NoneProjector(Projector):
     def apply(self, vector: torch.Tensor) -> torch.Tensor:
         return vector
 
 
-@ProjectorRegistry.register('divergenceFree')
+@ProjectorRegistry.register("divergenceFree")
 class DivergenceFreeProjector(Projector):
     def apply(self, vector: torch.Tensor) -> torch.Tensor:
         k = context.get().mesh.k
 
-        return vector - k * algebra.inner_vector_vector(k, vector) * (- derivative.inv_nabla2())
+        return vector - k * algebra.inner_vector_vector(k, vector) * (-derivative.inv_nabla_square())
