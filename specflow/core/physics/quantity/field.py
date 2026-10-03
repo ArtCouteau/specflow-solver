@@ -1,13 +1,34 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import Generic, Literal
+import dataclasses
+from dataclasses import dataclass, field
+from typing import Any, Generic, Literal, TypedDict, TypeVar, Unpack, overload
 
 import torch
 
 from specflow.core.numerics.backend.backend import NumericsBackend
 from specflow.core.numerics.mesh import Mesh
-from specflow.core.physics.quantity.quantity import Quantity, Tensor, TRank, TSpace, Vector
+from specflow.core.physics.quantity.quantity import (
+    Quantity,
+    Rank,
+    Scalar,
+    Space,
+    Tensor,
+    TRank,
+    TSpace,
+    Vector,
+)
+
+TNewRank = TypeVar("TNewRank", bound=Rank)
+TNewSpace = TypeVar("TNewSpace", bound=Space)
+
+
+class FieldChanges(TypedDict, total=False):
+    data: torch.Tensor
+    component: Literal[1, 2, 3]
+    dimension: Literal[1, 2, 3]
+    backend: NumericsBackend
+    mesh: Mesh
 
 
 @dataclass(frozen=True, eq=False)
@@ -33,28 +54,44 @@ class Field(Quantity, Generic[TRank, TSpace]):
         return tuple(range(-self.dimension, 0))
 
     def __add__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
-        return self.replace_data(self.data + other.data)
+        return self.replace(data=self.data + other.data)
 
     def __radd__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
         return self.__add__(other)
 
     def __sub__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
-        return self.replace_data(self.data - other.data)
+        return self.replace(data=self.data - other.data)
 
     def __rsub__(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
         return self.__sub__(other)
 
     def __neg__(self) -> Field[TRank, TSpace]:
-        return self.replace_data(-self.data)
+        return self.replace(data=-self.data)
 
     def __mul__(self, c: complex) -> Field[TRank, TSpace]:
-        return self.replace_data(c * self.data)
+        return self.replace(data=c * self.data)
 
     def __rmul__(self, c: complex) -> Field[TRank, TSpace]:
         return self.__mul__(c)
 
-    def replace_data(self, data: torch.Tensor) -> Field[TRank, TSpace]:
-        return replace(self, data=data)
+    @overload
+    def replace(self, **changes: Unpack[FieldChanges]) -> Field[TRank, TSpace]: ...
+
+    @overload
+    def replace(self, *, rank: type[TNewRank], **changes: Unpack[FieldChanges]) -> Field[TNewRank, TSpace]: ...
+
+    @overload
+    def replace(self, *, space: type[TNewSpace], **changes: Unpack[FieldChanges]) -> Field[TRank, TNewSpace]: ...
+
+    @overload
+    def replace(
+        self, *, rank: type[TNewRank], space: type[TNewSpace], **changes: Unpack[FieldChanges]
+    ) -> Field[TNewRank, TNewSpace]: ...
+
+    def replace(self, **changes: Any) -> Field[Any, Any]:
+        if changes.get("rank", self.rank) is Scalar:
+            changes["component"] = 1
+        return dataclasses.replace(self, **changes)
 
     def add_(self, other: Field[TRank, TSpace]) -> None:
         self.data.add_(other.data)

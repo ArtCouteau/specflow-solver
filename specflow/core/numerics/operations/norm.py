@@ -3,16 +3,12 @@ from specflow.core.physics.quantity.quantity import Scalar, Tensor, TSpace, Vect
 
 
 def l2_norm(field: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
-    return Field(square_l2_norm(field).data.sqrt(), Scalar, field.space, field.component, field.dimension)
+    return field.replace(data=square_l2_norm(field).data.sqrt(), rank=Scalar)
 
 
 def square_l2_norm(field: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
-    return Field(
-        (field.data.abs() ** 2).sum(dim=field.component_axes), Scalar, field.space, field.component, field.dimension
-    )
+    return field.replace(data=(field.data.abs() ** 2).sum(dim=field.component_axes), rank=Scalar)
 
 
 def square_frobenius_norm(field: Field[Tensor, TSpace]) -> Field[Scalar, TSpace]:
-    return Field(
-        (field.data.abs() ** 2).sum(dim=field.component_axes), Scalar, field.space, field.component, field.dimension
-    )
+    return field.replace(data=(field.data.abs() ** 2).sum(dim=field.component_axes), rank=Scalar)

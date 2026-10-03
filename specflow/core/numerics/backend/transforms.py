@@ -18,20 +18,8 @@ class TransformsBackend(ABC):
 class SerialTransforms(TransformsBackend):
     @override
     def rfftn(self, field: Field[TRank, Physical]) -> Field[TRank, Spectral]:
-        return Field(
-            torch.fft.rfftn(field.data, dim=field.domain_axes, norm="forward"),
-            field.rank,
-            Spectral,
-            field.component,
-            field.dimension,
-        )
+        return field.replace(data=torch.fft.rfftn(field.data, dim=field.domain_axes, norm="forward"), space=Spectral)
 
     @override
     def irfftn(self, field: Field[TRank, Spectral]) -> Field[TRank, Physical]:
-        return Field(
-            torch.fft.irfftn(field.data, dim=field.domain_axes, norm="forward"),
-            field.rank,
-            Physical,
-            field.component,
-            field.dimension,
-        )
+        return field.replace(data=torch.fft.irfftn(field.data, dim=field.domain_axes, norm="forward"), space=Physical)
