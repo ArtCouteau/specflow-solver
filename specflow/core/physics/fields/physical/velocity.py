@@ -42,4 +42,4 @@ def dissipation_from_vorticity(velocity: Field[Vector, Spectral], viscosity: flo
 
 
 def rate_of_strain(strainRateTensor: Field[Tensor, Physical]) -> Field[Scalar, Physical]:
-    return 2.0 * norm.square_frobenius_norm(strainRateTensor).sqrt()
+    return (2.0 * norm.square_frobenius_norm(strainRateTensor)).sqrt_()
