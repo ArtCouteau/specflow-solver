@@ -7,7 +7,7 @@ def cross_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> F
 
 
 def inner_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:
-    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, a.component, a.dimension)
+    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, 1, a.dimension)
 
 
 def inner_vector_tensor(a: Field[Vector, TSpace], b: Field[Tensor, TSpace]) -> Field[Vector, TSpace]:
@@ -15,7 +15,7 @@ def inner_vector_tensor(a: Field[Vector, TSpace], b: Field[Tensor, TSpace]) -> F
 
 
 def inner_tensor_tensor(a: Field[Tensor, TSpace], b: Field[Tensor, TSpace]) -> Field[Scalar, TSpace]:
-    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, a.component, a.dimension)
+    return Field((a.data * b.data).sum(dim=a.component_axes), Scalar, a.space, 1, a.dimension)
 
 
 def outer_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Tensor, TSpace]:
