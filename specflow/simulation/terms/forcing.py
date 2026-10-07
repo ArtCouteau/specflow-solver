@@ -5,7 +5,9 @@ from dataclasses import dataclass
 
 import torch
 
-from specflow.core.physics.quantity.quantity import Vector
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Spectral, Vector
+from specflow.core.physics.quantity.sparse import SparseField
 from specflow.simulation.terms.term import Term, TermRegistry
 
 
@@ -15,66 +17,19 @@ class OrnsteinUhlenbeckForcingTerm(Term[Vector]):
     sigma: float
     tau: float
     previousTime: float
-    mapping: torch.Tensor
-    coefficients: torch.Tensor
+    coefficients: SparseField[Vector]
 
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
+    def _update_coefficients(self, dt: float) -> None:
+        values = self.coefficients.data.values()
+        values.add_(-dt / self.tau * values + self.sigma * math.sqrt(2.0 * dt / self.tau) * torch.randn_like(values))
+        self.coefficients.apply_Hermitian_symmetry_()
 
-        self.sigma = context.get().config.get(f"equations/{self.equation}/terms/{tag}/sigma", float)
-        self.tau = context.get().config.get(f"equations/{self.equation}/terms/{tag}/tau", float)
-
-        _range = tuple(context.get().config.get(f"equations/{self.equation}/terms/{tag}/range", list))
-        self.indices = sparse.indices_from_range(rank, _range[0], _range[1]).to(
-            device=context.get().config.get("numerics/device", str)
-        )
-        self.mapping = sparse.compute_Hermitian_symmetric_mapping(self.indices)
-        self.coefficients = self._init_coefficients().to(device=context.get().config.get("numerics/device", str))
-
-        self.previousTime = context.get().config.get("time/start", float)
-
-    def _init_coefficients(self) -> torch.Tensor:
-        if context.get().config.get("time/restart", bool):
-            return context.get().io.h5.read_tensor(
-                f"output/{context.get().io.output.timestamp(context.get().config.get('time/start', float))}/simulation",
-                f"restart/{self.tag}/coefficients",
-                device=context.get().config.get("numerics/device", str),
-            )
-        else:
-            return torch.zeros(self.indices.size(1)).to(
-                dtype=context.get().config.get("numerics/precision/complex", torch.dtype)
-            )
-
-    def _update_coefficients(self, dt: float):
-        self.coefficients.add_(
-            -dt / self.tau * self.coefficients
-            + self.sigma * math.sqrt(2.0 * dt / self.tau) * torch.randn_like(self.coefficients)
-        )
-
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
+    def compute(self, rhs: Field[Vector, Spectral], time: float) -> None:
         if time > self.previousTime:
             self._update_coefficients(time - self.previousTime)
-            self.previousTime = time
+            object.__setattr__(self, "previousTime", time)
 
-        return torch.sparse_coo_tensor(  # type: ignore
-            self.indices,
-            sparse.apply_Hermitian_symmetric_mapping(self.coefficients, self.mapping),
-            size=variable.get(self.variable).size(),
-        ).to_dense()
+        rhs.data.add_(self.coefficients.data.to_dense())
 
-    def reconstruct(self, variable: solution.SolutionVariable, timestamp: str) -> torch.Tensor:
-        return torch.sparse_coo_tensor(  # type: ignore
-            self.indices,
-            sparse.apply_Hermitian_symmetric_mapping(
-                context.get().io.h5.read_tensor(
-                    f"output/{timestamp}/simulation",
-                    f"restart/{self.tag}/coefficients",
-                    device=context.get().config.get("numerics/device", str),
-                ),
-                self.mapping,
-            ),
-            size=variable.get(self.variable).size(),
-        ).to_dense()
-
-    def restart_state(self) -> dict[str, torch.Tensor]:
-        return {"coefficients": self.coefficients}
+    def diagnostic_fields(self, time: float) -> dict[str, Field[Vector, Spectral]]:
+        return {"coefficients": self.coefficients.to_dense()}
