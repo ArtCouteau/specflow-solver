@@ -1,142 +1,55 @@
 from __future__ import annotations
 
 import time
-import torch
-from typing import Literal
+from dataclasses import dataclass
 
-from . import control, equation, integration, solution
-from ..core import defs
-from ..core import context
-from ..core.numerics.operations import fourier
-from ..core.physics import variable
+from specflow.core import defs
+from specflow.core.numerics.backend.backend import NumericsBackend
+from specflow.core.physics.quantity.quantity import Scalar, Vector
+from specflow.simulation.control import SimulationControls
+from specflow.simulation.equation import Equation
+from specflow.simulation.integration import TimeIntegrator
 
 
+@dataclass(frozen=True)
 class Solver:
-    control: control.SimulationControls
-    integrator: integration.TimeIntegrator
-    equations: dict[str, equation.Equation]
-    variable: solution.SolutionVariable
-
-    def __init__(self):
-        self.control = control.SimulationControls(self)
-        self.integrator = integration.TimeIntegratorRegistry.get(
-            context.get().config.get('schemes/integration', str)
-        )(self)
-        self.equations = {
-            key: equation.EquationRegistry.get(
-                context.get().config.get(f'equations/{key}/prebuild', str, 'custom')
-            )(key)
-            for key in context.get().config.get('equations', dict).keys()
-        }
-        self._init_variable()
-
-    def _init_variable(self):
-        if context.get().config.get('time/restart', bool):
-            self.variable = (
-                solution.SolutionVariable(
-                    {
-                        eq.variable: context.get().io.h5.read_tensor(
-                            f'output/{context.get().io.output.timestamp(context.get().config.get("time/start", float))}'
-                            f'/simulation',
-                            f'fields/{eq.variable}',
-                            device=context.get().config.get('numerics/device', str)
-                        )
-                        for eq in self.equations.values()
-                    }
-                )
-            )
-        else:
-            self.variable = solution.SolutionVariable(
-                {
-                    eq.variable: context.get().memory.alloc(
-                        f'solution/{eq.variable}',
-                        variable.field_shape(eq.rank),
-                        dtype=context.get().config.get('numerics/precision/complex', torch.dtype),
-                        device=context.get().config.get('numerics/device', str)
-                    ) for eq in self.equations.values()
-                }
-            )
-            self.variable.zero_()
-
-    def _add_time_step_limiters(self):
-        for eq in self.equations.values():
-            for term in eq.terms.values():
-                if (limiter := term.time_step_limiter()) is not None:
-                    self.integrator.add_time_step_limiter(*limiter)
-
-    def _setup(self):
-        self.integrator.setup()
-        self._add_time_step_limiters()
+    control: SimulationControls
+    integrator: TimeIntegrator
+    equations: list[Equation[Scalar | Vector]]
+    backend: NumericsBackend
 
     def _step(self):
-        self.integrator.advance()
+        self.integrator.advance(self.equations, self.control.time.current)
 
-        for key, tensor in self.variable.data.items():
-            if tensor.isnan().any():
-                raise ValueError(f'NaN values detected in the variable of equation {key}')
-
-    def _write_state(self):
-        timestamp = context.get().io.output.timestamp(self.control.time.current)
-        path = f'output/{timestamp}/simulation'
-        context.get().io.output.make_dir(f'output/{timestamp}')
-        for eq in self.equations.values():
-            context.get().io.h5.write_tensor(
-                path,
-                f'fields/{eq.variable}',
-                self.variable.get(eq.variable),
-                {'rank': eq.rank.name}
-            )
-
-            for term in eq.terms.values():
-                for key, value in term.restart_state().items():
-                    context.get().io.h5.write_tensor(
-                        path,
-                        f'restart/{term.tag}/{key}',
-                        value,
-                        {'rank': eq.rank.name}
-                    )
-
-                for key, value in term.diagnostic_fields(self.variable, self.control.time.current).items():
-                    context.get().io.h5.write_tensor(
-                        path,
-                        f'fields/{key}',
-                        value
-                    )
-
-    def set_initial_condition(self, variable: str, data: torch.Tensor, space: Literal['physical', 'spectral']):
-        if space == 'physical':
-            self.variable.get(variable).copy_(fourier.to_spectral(data))
-        else:
-            self.variable.get(variable).copy_(data)
+        for eq in self.equations:
+            if eq.variable.data.isnan().any():
+                raise ValueError(f"NaN values detected in the variable of equation {eq.tag}")
 
     def run(self) -> None:
-        print('\n\nStarting time loop\n')
+        print("\n\nStarting time loop\n")
 
-        context.get().log.info('Clean output directory')
-        context.get().io.output.make_dir('output')
+        self.backend.logger.info("Clean output directory")
+        self.backend.io.output.make_dir("output")
 
-        self._setup()
-
-        print('Running time loop')
-        self._write_state()
+        self.backend.logger.info("Running time loop")
+        # self._write_state()
 
         _t0 = time.perf_counter()
         while self.control.time.advance():
-            print(f'\nStep {self.control.time.step}')
-            print(f'  Time = {context.get().io.output.timestamp(self.control.time.current)}')
+            self.backend.logger.info(f"\nStep {self.control.time.step}")
+            self.backend.logger.info(f"  Time = {self.backend.io.output.timestamp(self.control.time.current)}")
 
-            self.integrator.update(self.variable)
-            self.control.time.clamp_dt()
-            print(f'  Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}')
+            # self.integrator.dt = self.control.time.clamp_dt()
+            self.backend.logger.info(f"  Time step = {self.integrator.dt:.{defs.TIMESTAMP_DIGITS}f}")
 
             self._step()
-            self.control.time.update()
 
+            self.control.time.update(self.integrator.dt)
             if self.control.time.save.active:
-                self._write_state()
+                # self._write_state()
                 self.control.time.save.deactivate()
 
         _t1 = time.perf_counter()
-        print(f'\nSimulation has successfully finished')
-        context.get().log.info(f'Elapsed time: {(_t1 - _t0)/3600:.2f} hours')
-        context.get().log.info(f'Average time step duration: {(_t1 - _t0)/self.control.time.step:.3f} seconds')
+        self.backend.logger.info("\nSimulation has successfully finished")
+        self.backend.logger.info(f"Elapsed time: {(_t1 - _t0) / 3600:.2f} hours")
+        self.backend.logger.info(f"Average time step duration: {(_t1 - _t0) / self.control.time.step:.3f} seconds")

@@ -1,93 +1,98 @@
 from __future__ import annotations
 
 import math
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import TypeVar, override
+
 import torch
-from typing import Callable
 
-from .. import context
-from ..numerics.operations import fourier, mask, norm
-from ..numerics import dims
-from ..registry import Registry
+from specflow.core.numerics.mesh import Mesh
+from specflow.core.numerics.operations import algebra, filters, fourier
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Physical, Rank, Scalar, Spectral
+
+RankA = TypeVar("RankA", bound=Rank)
+RankB = TypeVar("RankB", bound=Rank)
+RankOut = TypeVar("RankOut", bound=Rank)
+TDealias = TypeVar("TDealias", bound=Rank)
 
 
-class Dealias:
-    filter: torch.Tensor
+class QuadraticDealias(ABC):
+    _filter: Field[Scalar, Spectral]
 
     def _pseudo_spectral_pass(
         self,
-        function: Callable[..., torch.Tensor],
-        transform_forward: Callable[[torch.Tensor], torch.Tensor],
-        transform_backward: Callable[[torch.Tensor], torch.Tensor],
-        *data: torch.Tensor
-    ) -> torch.Tensor:
-        return transform_forward(function(*(transform_backward(d) for d in data)))
+        operation: Callable[[Field[RankA, Physical], Field[RankB, Physical]], Field[RankOut, Physical]],
+        a: Field[RankA, Spectral],
+        b: Field[RankB, Spectral],
+    ) -> Field[RankOut, Spectral]:
+        return fourier.to_spectral(operation(fourier.to_physical(a), fourier.to_physical(b)))
 
-    def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor: ...
-
-
-class DealiasRegistry(Registry[Dealias]):
-    pass
-
-
-@DealiasRegistry.register('smoothing')
-class SmoothingDealias(Dealias):
-    order: int
-
-    def __init__(self):
-        self.order = context.get().config.get('schemes/dealias/order', int, 36)
-        kMax = context.get().config.get('grid/N', int)//2
-        self.filter = torch.exp(- self.order * (norm.l2_norm(context.get().mesh.grid)/kMax)**self.order)
-
-    def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
-        return (
-            self.filter
-            * self._pseudo_spectral_pass(function, fourier.to_spectral, fourier.to_physical, *data)
-        )
+    @abstractmethod
+    def apply(
+        self,
+        operation: Callable[[Field[RankA, Physical], Field[RankB, Physical]], Field[RankOut, Physical]],
+        a: Field[RankA, Spectral],
+        b: Field[RankB, Spectral],
+    ) -> Field[RankOut, Spectral]: ...
 
 
-@DealiasRegistry.register('2/3')
-class TwoThirdsDealias(Dealias):
-    def __init__(self):
-        self.filter = mask.spherical(context.get().config.get('grid/N', int)/3.0)
+class TwoThirdsDealias(QuadraticDealias):
+    def __init__(self, mesh: Mesh):
+        self._filter = filters.spherical_truncation(mesh, mesh.layout.N / 3.0)
 
-    def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
-        return (
-            self.filter
-            * self._pseudo_spectral_pass(function, fourier.to_spectral, fourier.to_physical, *data)
-        )
+    @override
+    def apply(
+        self,
+        operation: Callable[[Field[RankA, Physical], Field[RankB, Physical]], Field[RankOut, Physical]],
+        a: Field[RankA, Spectral],
+        b: Field[RankB, Spectral],
+    ) -> Field[RankOut, Spectral]:
+        return self._pseudo_spectral_pass(operation, a, b)
 
 
-@DealiasRegistry.register('phaseshift')
-class PhaseshiftDealias(Dealias):
-    _shiftFactor: torch.Tensor
-    _inverseShiftFactor: torch.Tensor
+class PhaseshiftDealias(QuadraticDealias):
+    _shift: Field[Scalar, Spectral]
+    _unshift: Field[Scalar, Spectral]
 
-    def __init__(self):
-        phase = (
-            context.get().mesh.grid.sum(dim=dims.VECTOR)
-            * math.pi/context.get().config.get('grid/N', int)
-        )
-        self._shiftFactor = torch.exp(1.0j*phase)
-        self._inverseShiftFactor = torch.exp(-1.0j*phase)
-        self.filter = mask.spherical(context.get().config.get('grid/N', int)/2.0)
+    def __init__(self, mesh: Mesh):
+        k = mesh.spectral.wavenumbers
+        phase = k.data.sum(dim=k.component_axes) * (0.5 * mesh.physical.spacing)
+        self._shift = k.replace(data=torch.exp(1.0j * phase), rank=Scalar)
+        self._unshift = self._shift.replace(data=torch.exp(-1.0j * phase))
+        self._filter = filters.spherical_truncation(mesh, mesh.layout.N * math.sqrt(2.0) / 3.0)
 
-    def _shift(self, data: torch.Tensor) -> torch.Tensor:
-        return data * self._shiftFactor
-
-    def _inverse_shift(self, data: torch.Tensor) -> torch.Tensor:
-        return data * self._inverseShiftFactor
-
-    def _transform_backward(self, data: torch.Tensor) -> torch.Tensor:
-        return fourier.to_physical(self._shift(data))
-
-    def _transform_forward(self, data: torch.Tensor) -> torch.Tensor:
-        return self._inverse_shift(fourier.to_spectral(data))
-
-    def apply(self, function: Callable[..., torch.Tensor], *data: torch.Tensor) -> torch.Tensor:
-        return (
-            self.filter
-            * 0.5*(
-                self._pseudo_spectral_pass(function, fourier.to_spectral, fourier.to_physical, *data)
-                + self._pseudo_spectral_pass(function, self._transform_forward, self._transform_backward, *data)
+    @override
+    def apply(
+        self,
+        operation: Callable[[Field[RankA, Physical], Field[RankB, Physical]], Field[RankOut, Physical]],
+        a: Field[RankA, Spectral],
+        b: Field[RankB, Spectral],
+    ) -> Field[RankOut, Spectral]:
+        return self._pseudo_spectral_pass(operation, a, b).add_(
+            algebra.scale(
+                self._pseudo_spectral_pass(operation, algebra.scale(a, self._shift), algebra.scale(b, self._shift)),
+                self._unshift,
             )
         )
+
+
+class FourierSmoothing:
+    order: int
+    _filter: Field[Scalar, Spectral]
+
+    def __init__(self, mesh: Mesh, order: int = 32):
+        self.order = order
+        kNorm = mesh.spectral.wavenumbersSquared.data.sqrt() / mesh.spectral.maxWavenumber
+        self._filter = mesh.spectral.wavenumbersSquared.replace(data=torch.exp(-order * kNorm**order))
+
+    def _pseudo_spectral_pass(
+        self, operation: Callable[[Field[RankA, Physical]], Field[RankOut, Physical]], a: Field[RankA, Spectral]
+    ) -> Field[RankOut, Spectral]:
+        return fourier.to_spectral(operation(fourier.to_physical(a)))
+
+    def apply(
+        self, operation: Callable[[Field[RankA, Physical]], Field[RankOut, Physical]], a: Field[RankA, Spectral]
+    ) -> Field[RankOut, Spectral]:
+        return algebra.scale(self._pseudo_spectral_pass(operation, a), self._filter)

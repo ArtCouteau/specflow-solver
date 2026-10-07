@@ -7,7 +7,6 @@ from typing import Literal
 import torch
 
 from specflow.core.numerics.backend.io import IOInterface
-from specflow.core.numerics.backend.memory import MemoryManager
 from specflow.core.numerics.backend.reduction import ReductionBackend
 from specflow.core.numerics.backend.transforms import TransformsBackend
 
@@ -16,7 +15,6 @@ from specflow.core.numerics.backend.transforms import TransformsBackend
 class NumericsBackend:
     io: IOInterface
     logger: logging.Logger
-    memory: MemoryManager
     parameters: NumericsParameters
     reduction: ReductionBackend
     transforms: TransformsBackend

@@ -1,39 +1,34 @@
 from __future__ import annotations
 
+from abc import abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Generic
+
 import torch
-from typing import Callable
 
-from .. import solution
-from ...core.physics import variable
-from ...core.registry import Registry
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Spectral, TRank
+from specflow.core.registry import Registry
 
 
-class Term:
+@dataclass(frozen=True)
+class Term(Generic[TRank]):
+    rank: type[TRank]
     tag: str
-    equation: str
-    variable: str
-    rank: variable.Rank
 
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        self.tag = tag
-        self.equation = equation
-        self.variable = variable
-        self.rank = rank
+    @abstractmethod
+    def compute(self, rhs: Field[TRank, Spectral], time: float) -> None: ...
 
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor: ...
-
-    def reconstruct(self, variable: solution.SolutionVariable, timestamp: str) -> torch.Tensor:
-        return self.compute(variable, float(timestamp))
-
-    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
+    def time_step_limiter(self) -> tuple[str, float, Callable[[Field[TRank, Spectral], float], float]] | None:
         return None
 
     def restart_state(self) -> dict[str, torch.Tensor]:
         return {}
 
-    def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
-        return {}
+    # def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
+    #     return {}
 
 
-class TermRegistry(Registry[Term]):
+class TermRegistry(Registry[Term[TRank]]):
     pass

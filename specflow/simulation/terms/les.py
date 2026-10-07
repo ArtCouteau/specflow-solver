@@ -1,84 +1,40 @@
 from __future__ import annotations
 
-import torch
-from typing import Callable
+from abc import abstractmethod
+from dataclasses import dataclass
 
-from . import term
-from .. import solution
-from ...core import context
-from ...core.numerics.operations import algebra, derivative, fourier
-from ...core.physics import fields, variable
+from specflow.core.numerics.operations import algebra, derivative
+from specflow.core.physics import fields
+from specflow.core.physics.dealias import FourierSmoothing
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, Tensor, Vector
+from specflow.simulation.terms.term import Term, TermRegistry
 
 
-class LESModelTerm(term.Term):
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
+@dataclass(frozen=True)
+class LESModelTerm(Term[Vector]):
+    smoothing: FourierSmoothing
+    velocity: Field[Vector, Spectral]
 
-        if not self.rank.name == 'VECTOR':
-            raise NotImplementedError()
+    @abstractmethod
+    def _eddy_viscosity(self, strainRateTensor: Field[Tensor, Physical]) -> Field[Scalar, Physical]: ...
 
-    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
-        return (
-            f'Diffusion/{self.equation}/{self.tag}',
-            context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
-            self._diffusion_number
-        )
+    def _stress_tensor(self, strainRateTensor: Field[Tensor, Physical]) -> Field[Tensor, Physical]:
+        return 2.0 * algebra.scale(strainRateTensor, self._eddy_viscosity(strainRateTensor))
 
-    def _diffusion_number(self, variable: solution.SolutionVariable, dt: float) -> float:
-        return (
-            self._physical_eddy_viscosity(
-                fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
-            ).max().item()
-            * dt
-            / context.get().mesh.physical_grid_spacing()**2
-        )
-
-    def _get_viscosity(self, velocity: torch.Tensor) -> torch.Tensor:
-        return fourier.to_spectral(
-            self._physical_eddy_viscosity(
-                fields.physical.velocity.strain_rate_tensor(velocity.data)
-            )
-        )
-
-    def _physical_eddy_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor: ...
-
-    def _physical_stress_tensor(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
-        return 2.0*algebra.mul_scalar_tensor(
-            self._physical_eddy_viscosity(physicalStrainRateTensor),
-            physicalStrainRateTensor
-        )
-
-    def diagnostic_fields(self, variable: solution.SolutionVariable, time: float) -> dict[str, torch.Tensor]:
-        return {
-            'eddyViscosity': fourier.to_spectral(
-                self._physical_eddy_viscosity(
-                    fields.physical.velocity.strain_rate_tensor(variable.get('velocity'))
-                )
-            )
-        }
-
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return derivative.divergence_tensor(
-            context.get().physics.dealias.apply(
-                self._physical_stress_tensor,
-                fields.spectral.velocity.strain_rate_tensor(variable.get('velocity'))
+    def compute(self, rhs: Field[Vector, Spectral], time: float) -> None:
+        rhs.add_(
+            derivative.divergence_tensor(
+                self.smoothing.apply(self._stress_tensor, fields.spectral.velocity.strain_rate_tensor(self.velocity))
             )
         )
 
 
-@term.TermRegistry.register('LES/Smagorinsky')
+@TermRegistry.register("LES/Smagorinsky")
+@dataclass(frozen=True)
 class SmagorinskyLESModelTerm(LESModelTerm):
-    constant: float
     filterWidth: float
+    constant: float = 0.12
 
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
-
-        self.constant = context.get().config.get(f'equations/{self.equation}/terms/{tag}/constant', float, 0.12)
-        self.filterWidth = context.get().mesh.physical_grid_spacing()
-
-    def _physical_eddy_viscosity(self, physicalStrainRateTensor: torch.Tensor) -> torch.Tensor:
-        return (
-            (self.constant*self.filterWidth)**2
-            * fields.physical.velocity.rate_of_strain(physicalStrainRateTensor)
-        )
+    def _eddy_viscosity(self, strainRateTensor: Field[Tensor, Physical]) -> Field[Scalar, Physical]:
+        return (self.constant * self.filterWidth) ** 2 * fields.physical.velocity.rate_of_strain(strainRateTensor)

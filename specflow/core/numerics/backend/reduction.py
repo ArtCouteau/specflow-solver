@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import override
 
 from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import TRank, TSpace
+from specflow.core.physics.quantity.quantity import Physical, TRank, TSpace
 from specflow.core.physics.quantity.statistics import IntegralValue
 
 
@@ -13,6 +13,9 @@ class ReductionBackend(ABC):
     @abstractmethod
     def global_mean(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]: ...
 
+    @abstractmethod
+    def global_max(self, field: Field[TRank, Physical]) -> float: ...
+
 
 class SerialReduction(ReductionBackend):
     @override
@@ -22,3 +25,7 @@ class SerialReduction(ReductionBackend):
     @override
     def global_mean(self, field: Field[TRank, TSpace]) -> IntegralValue[TRank]:
         return IntegralValue(field.data.mean(field.domain_axes), field.rank)
+
+    @override
+    def global_max(self, field: Field[TRank, Physical]) -> float:
+        return field.data.max().item()

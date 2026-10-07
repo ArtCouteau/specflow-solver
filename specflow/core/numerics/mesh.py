@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -27,18 +28,15 @@ class Mesh:
 
 class SpectralGrid:
     wavenumbers: Field[Vector, Spectral]
+    maxWavenumber: float
     wavenumbersSquared: Field[Scalar, Spectral]
     inverseWavenumbersSquared: Field[Scalar, Spectral]
-    rfftWeights: Field[Scalar, Spectral]
+    parsevalWeights: Field[Scalar, Spectral]
+    domainShape: tuple[int, ...]
 
     def __init__(self, mesh: Mesh, numerics: NumericsBackend) -> None:
         self.wavenumbers = Field(
-            numerics.memory.alloc(
-                "mesh/spectral/wavenumbers",
-                (mesh.layout.DIMENSION,) + _domain_shape(mesh.layout),
-                dtype=numerics.parameters.precision.FLOAT,
-                device=numerics.parameters.device,
-            ),
+            2.0 * math.pi / mesh.layout.LENGTH * self._construct_grid(mesh.layout, numerics),
             Vector,
             Spectral,
             mesh.layout.DIMENSION,
@@ -46,15 +44,9 @@ class SpectralGrid:
             numerics,
             mesh,
         )
-        self.wavenumbers.data.copy_(2.0 * torch.pi / mesh.layout.LENGTH * self._construct_grid(mesh.layout, numerics))
 
         self.wavenumbersSquared = Field(
-            numerics.memory.alloc(
-                "mesh/spectral/wavenumbersSquared",
-                _domain_shape(mesh.layout),
-                dtype=numerics.parameters.precision.FLOAT,
-                device=numerics.parameters.device,
-            ),
+            norm.square_l2_norm(self.wavenumbers).data,
             Scalar,
             Spectral,
             1,
@@ -62,15 +54,9 @@ class SpectralGrid:
             numerics,
             mesh,
         )
-        self.wavenumbersSquared.copy_(norm.square_l2_norm(self.wavenumbers))
 
         self.inverseWavenumbersSquared = Field(
-            numerics.memory.alloc(
-                "mesh/spectral/inverseWavenumbersSquared",
-                _domain_shape(mesh.layout),
-                dtype=numerics.parameters.precision.FLOAT,
-                device=numerics.parameters.device,
-            ),
+            torch.where(self.wavenumbersSquared.data > 0, 1 / self.wavenumbersSquared.data, 0.0),
             Scalar,
             Spectral,
             1,
@@ -78,9 +64,22 @@ class SpectralGrid:
             numerics,
             mesh,
         )
-        self.wavenumbersSquared.data.copy_(
-            torch.where(self.wavenumbersSquared.data > 0, 1 / self.wavenumbersSquared.data, 0.0)
+
+        self.parsevalWeights = Field(
+            torch.empty_like(self.wavenumbersSquared.data),
+            Scalar,
+            Spectral,
+            1,
+            mesh.layout.DIMENSION,
+            numerics,
+            mesh,
         )
+        self.parsevalWeights.data.fill_(2.0)
+        self.parsevalWeights.data[..., 0] = 1.0
+        self.parsevalWeights.data[..., -1] = 1.0
+
+        self.domainShape = (mesh.layout.DIMENSION - 1) * (mesh.layout.N,) + (mesh.layout.N // 2 + 1,)
+        self.maxWavenumber = 2.0 * math.pi / mesh.layout.LENGTH * (mesh.layout.N // 2)
 
     def _construct_grid(self, layout: MeshLayout, numerics: NumericsBackend) -> torch.Tensor:
         return _construct_grid(
@@ -92,15 +91,12 @@ class SpectralGrid:
 
 class PhysicalGrid:
     grid: Field[Vector, Physical]
+    spacing: float
+    domainShape: tuple[int, ...]
 
     def __init__(self, mesh: Mesh, numerics: NumericsBackend) -> None:
         self.grid = Field(
-            numerics.memory.alloc(
-                "mesh/physical/grid",
-                (mesh.layout.DIMENSION,) + _domain_shape(mesh.layout),
-                dtype=numerics.parameters.precision.FLOAT,
-                device=numerics.parameters.device,
-            ),
+            self._construct_grid(mesh.layout, numerics),
             Vector,
             Physical,
             mesh.layout.DIMENSION,
@@ -108,7 +104,9 @@ class PhysicalGrid:
             numerics,
             mesh,
         )
-        self.grid.data.copy_(2.0 * torch.pi / mesh.layout.LENGTH * self._construct_grid(mesh.layout, numerics))
+
+        self.spacing = mesh.layout.LENGTH / mesh.layout.N
+        self.domainShape = (mesh.layout.DIMENSION) * (mesh.layout.N,)
 
     def _construct_grid(self, layout: MeshLayout, numerics: NumericsBackend) -> torch.Tensor:
         tmp = layout.LENGTH / layout.N * torch.arange(0, layout.N)
@@ -117,10 +115,6 @@ class PhysicalGrid:
             dtype=numerics.parameters.precision.FLOAT,
             device=numerics.parameters.device,
         )
-
-
-def _domain_shape(layout: MeshLayout) -> tuple[int, ...]:
-    return (layout.DIMENSION - 1) * (layout.N,) + (layout.N // 2 + 1,)
 
 
 def _construct_grid(layout: MeshLayout, dim: torch.Tensor, dimLast: torch.Tensor) -> torch.Tensor:

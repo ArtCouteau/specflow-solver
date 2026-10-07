@@ -1,82 +1,71 @@
 from __future__ import annotations
 
-import torch
-from typing import Callable
+from dataclasses import dataclass
 
-from . import term
-from .. import solution
-from ...core import context
-from ...core.numerics.operations import algebra, derivative, fourier
-from ...core.physics import fields, variable
-
-
-class AdvectionTerm(term.Term):
-    advectingField: str = 'velocity'
-    advectedField: str
-
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
-        self.advectedField = variable
-
-    def time_step_limiter(self) -> tuple[str, float, Callable[[solution.SolutionVariable, float], float]] | None:
-        return (
-            'CFL',
-            context.get().config.get(f'equations/{self.equation}/terms/{self.tag}/limiter', float, 0.5),
-            self._CFL_number
-        )
-
-    def _CFL_number(self, variable: solution.SolutionVariable, dt: float) -> float:
-        return (
-            fourier.to_physical(variable.get(self.advectingField)).abs().max().item()
-            * dt
-            / context.get().mesh.physical_grid_spacing()
-        )
+from specflow.core.numerics.operations import algebra, derivative
+from specflow.core.physics import fields
+from specflow.core.physics.dealias import QuadraticDealias
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, Tensor, TRank, Vector
+from specflow.simulation.terms.term import Term, TermRegistry
 
 
-@term.TermRegistry.register('advection/rotation')
-class RotationFormAdvectionTerm(AdvectionTerm):
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
+@dataclass(frozen=True)
+class AdvectionTerm(Term[TRank]):
+    advecting: Field[Vector, Spectral]
+    advected: Field[TRank, Spectral]
+    dealias: QuadraticDealias
 
-        if not self.rank.name == 'VECTOR':
-            raise ValueError('Rotation form convection term can only be used in vector equations')
-        if not context.get().config.get(f'grid/dimension', int) == 3:
-            raise ValueError('Rotation form convection term can only be used in 3D simulations')
 
-    def _physical_space_operation(self, velocity: torch.Tensor, vorticity: torch.Tensor) -> torch.Tensor:
-        return - algebra.cross_vector_vector(vorticity, velocity)
+@TermRegistry.register("Advection/Rotation")
+@dataclass(frozen=True)
+class RotationFormVectorAdvectionTerm(AdvectionTerm[Vector]):
+    def _physical_space_operation(
+        self, velocity: Field[Vector, Physical], vorticity: Field[Vector, Physical]
+    ) -> Field[Vector, Physical]:
+        return -algebra.cross_vector_vector(vorticity, velocity)
 
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return context.get().physics.dealias.apply(
-            self._physical_space_operation,
-            variable.get(self.advectingField),
-            fields.spectral.velocity.vorticity(variable.get(self.advectedField))
+    def compute(self, rhs: Field[Vector, Spectral], time: float) -> None:
+        rhs.add_(
+            self.dealias.apply(
+                self._physical_space_operation,
+                self.advecting,
+                fields.spectral.velocity.vorticity(self.advected),
+            )
         )
 
 
-@term.TermRegistry.register('advection/convection')
-class ConvectionFormAdvectionTerm(AdvectionTerm):
-    gradient: derivative.Gradient
-    operation: algebra.InterRankOperation
+@TermRegistry.register("Advection/ConvectionScalar")
+@dataclass(frozen=True)
+class ConvectionFormScalarAdvectionTerm(AdvectionTerm[Scalar]):
+    def _physical_space_operation(
+        self, velocity: Field[Vector, Physical], gradient: Field[Vector, Physical]
+    ) -> Field[Scalar, Physical]:
+        return -algebra.inner_vector_vector(velocity, gradient)
 
-    def __init__(self, tag: str, equation: str, variable: str, rank: variable.Rank):
-        super().__init__(tag, equation, variable, rank)
+    def compute(self, rhs: Field[Scalar, Spectral], time: float) -> None:
+        rhs.add_(
+            self.dealias.apply(
+                self._physical_space_operation,
+                self.advecting,
+                derivative.gradient_scalar(self.advected),
+            )
+        )
 
-        if self.rank.name == 'SCALAR':
-            self.gradient = derivative.gradient_scalar
-            self.operation = algebra.inner_vector_vector
-        elif self.rank.name == 'VECTOR':
-            self.gradient = derivative.gradient_vector
-            self.operation = algebra.inner_vector_tensor
-        else:
-            raise NotImplementedError()
 
-    def _physical_space_operation(self, velocity: torch.Tensor, gradient: torch.Tensor) -> torch.Tensor:
-        return - self.operation(velocity, gradient)
+@TermRegistry.register("Advection/ConvectionVector")
+@dataclass(frozen=True)
+class ConvectionFormVectorAdvectionTerm(AdvectionTerm[Vector]):
+    def _physical_space_operation(
+        self, velocity: Field[Vector, Physical], gradient: Field[Tensor, Physical]
+    ) -> Field[Vector, Physical]:
+        return -algebra.inner_vector_tensor(velocity, gradient)
 
-    def compute(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return context.get().physics.dealias.apply(
-            self._physical_space_operation,
-            variable.get(self.advectingField),
-            self.gradient(variable.get(self.advectedField))
+    def compute(self, rhs: Field[Vector, Spectral], time: float) -> None:
+        rhs.add_(
+            self.dealias.apply(
+                self._physical_space_operation,
+                self.advecting,
+                derivative.gradient_vector(self.advected),
+            )
         )

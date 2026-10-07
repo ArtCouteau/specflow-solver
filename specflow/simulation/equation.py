@@ -1,59 +1,43 @@
 from __future__ import annotations
 
-import torch
+from dataclasses import dataclass
+from typing import Generic, TypeVar, override
 
-from . import solution
-from .terms import term
-from ..core import context
-from ..core.registry import Registry
-from ..core.numerics.operations import projection, rank
-from ..core.physics import variable
+from specflow.core.numerics.operations import fourier
+from specflow.core.numerics.operations.projection import Projector
+from specflow.core.physics.quantity.field import Field
+from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, TRank, Vector
+from specflow.simulation.terms.term import Term
+
+TRankEquation = TypeVar("TRankEquation", bound=Scalar | Vector)
 
 
-class Equation:
-    rank: variable.Rank
+@dataclass(frozen=True)
+class Equation(Generic[TRank]):
     tag: str
-    terms: dict[str, term.Term]
-    variable: str
+    rank: type[TRank]
+    terms: dict[str, Term[TRank]]
+    rhs: Field[TRank, Spectral]
+    variable: Field[TRank, Spectral]
 
-    def __init__(self, tag: str):
-        self.tag = tag
-        self.rank = variable.Rank[context.get().config.get(f'equations/{self.tag}/rank', str).upper()]
-        self.variable = context.get().config.get(f'equations/{self.tag}/variable', str)
-        self.terms = {
-            termTag: term.TermRegistry.get(
-                f'{context.get().config.get(f'equations/{tag}/terms/{termTag}/kind', str)}'
-                f'/{context.get().config.get(f'equations/{tag}/terms/{termTag}/model', str)}'
-            )(termTag, self.tag, self.variable, self.rank)
-            for termTag in context.get().config.get(f'equations/{tag}/terms', dict).keys()
-        }
-
-    def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        tmp = rank.zeros(self.rank)
+    def compute_rhs(self, time: float) -> Field[TRank, Spectral]:
+        self.rhs.zero_()
         for term in self.terms.values():
-            tmp.add_(term.compute(variable, time))
+            term.compute(self.rhs, time)
 
-        return tmp
+        return self.rhs
 
+    def set_initial_conditions_physical(self, field: Field[TRank, Physical]) -> None:
+        self.variable.copy_(fourier.to_spectral(field))
 
-class EquationRegistry(Registry[Equation]):
-    pass
-
-
-@EquationRegistry.register('Navier-Stokes')
-class NavierStokesEquation(Equation):
-    projector: projection.Projector
-
-    def __init__(self, tag: str):
-        super().__init__(tag)
-        self.projector = projection.ProjectorRegistry.get(
-            context.get().config.get(f'equations/{self.tag}/projector', str)
-        )()
-
-    def compute_rhs(self, variable: solution.SolutionVariable, time: float) -> torch.Tensor:
-        return self.projector.apply(super().compute_rhs(variable, time))
+    def set_initial_conditions_spectral(self, field: Field[TRank, Spectral]) -> None:
+        self.variable.copy_(field)
 
 
-@EquationRegistry.register('custom')
-class CustomEquation(Equation):
-    pass
+@dataclass(frozen=True)
+class NavierStokesEquation(Equation[Vector]):
+    projector: Projector
+
+    @override
+    def compute_rhs(self, time: float) -> Field[Vector, Spectral]:
+        return self.rhs.copy_(self.projector.apply(self.variable.mesh, super().compute_rhs(time)))

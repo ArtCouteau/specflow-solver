@@ -1,5 +1,5 @@
 from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Scalar, Tensor, TSpace, Vector
+from specflow.core.physics.quantity.quantity import Scalar, TRank, Tensor, TSpace, Vector
 
 
 def cross_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> Field[Vector, TSpace]:
@@ -22,6 +22,10 @@ def outer_vector_vector(a: Field[Vector, TSpace], b: Field[Vector, TSpace]) -> F
     return a.replace(
         data=a.data.unsqueeze(a.component_axes[0] + 1) * b.data.unsqueeze(a.component_axes[0]), rank=Tensor
     )
+
+
+def scale(field: Field[TRank, TSpace], scalar: Field[Scalar, TSpace]) -> Field[TRank, TSpace]:
+    return field.replace(data=field.data * scalar.data)
 
 
 def mul_scalar_scalar(a: Field[Scalar, TSpace], b: Field[Scalar, TSpace]) -> Field[Scalar, TSpace]:

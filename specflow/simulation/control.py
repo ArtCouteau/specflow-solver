@@ -1,53 +1,40 @@
 from __future__ import annotations
 
-
-from . import solver
-from ..core import context
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True)
 class SimulationControls:
     time: TimeControls
 
-    def __init__(self, solver: solver.Solver):
-        self.time = TimeControls(solver)
 
-
+@dataclass
 class TimeControls:
     current: float
     end: float
     save: SaveControls
     step: int
-    solver: solver.Solver
-
-    def __init__(self, solver: solver.Solver):
-        self.solver = solver
-        self.current = context.get().config.get('time/start', float)
-        self.end = context.get().config.get('time/end', float)
-        self.step = 0
-        self.save = SaveControls()
 
     def advance(self) -> bool:
         return self.current < self.end
 
-    def clamp_dt(self):
-        if self.current + self.solver.integrator.dt > self.save.next:
-            self.solver.integrator.overwrite_dt(self.save.next - self.current)
+    def clamp_dt(self, target: float) -> float:
+        if self.current + target > self.save.next:
             self.save.activate()
+            return self.save.next - self.current
+        else:
+            return target
 
-    def update(self):
-        self.current += self.solver.integrator.dt
+    def update(self, dt: float):
+        self.current += dt
         self.step += 1
 
 
+@dataclass
 class SaveControls:
-    active: bool
     every: float
     next: float
-
-    def __init__(self):
-        self.active = False
-        self.every = context.get().config.get('save/every', float)
-        self.next = context.get().config.get('time/start', float) + self.every
+    active: bool = False
 
     def activate(self) -> None:
         self.active = True

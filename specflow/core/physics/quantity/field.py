@@ -93,14 +93,26 @@ class Field(Quantity, Generic[TRank, TSpace]):
             changes["component"] = 1
         return dataclasses.replace(self, **changes)
 
-    def add_(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
-        self.data.add_(other.data)
-        return self
-
     def copy_(self, other: Field[TRank, TSpace]) -> Field[TRank, TSpace]:
         self.data.copy_(other.data)
         return self
 
+    def add_(self, other: Field[TRank, TSpace], alpha: float | None = None) -> Field[TRank, TSpace]:
+        self.data.add_(other.data, alpha=alpha)
+        return self
+
+    def mul_(self, other: complex) -> Field[TRank, TSpace]:
+        self.data.mul_(other)
+        return self
+
     def sqrt_(self) -> Field[TRank, TSpace]:
         self.data.sqrt_()
+        return self
+
+    def pow_(self, exponent: float) -> Field[TRank, TSpace]:
+        self.data.pow_(exponent)
+        return self
+
+    def zero_(self) -> Field[TRank, TSpace]:
+        self.data.zero_()
         return self
