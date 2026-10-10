@@ -13,16 +13,16 @@ from specflow.processing.physics.statistics.wrappers import IntegralValue
 
 class ResidualDissipationRate(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        S = frame[StrainRateTensor].value
-        nuT = frame[SpectralEddyViscosity].value
+        S = frame[StrainRateTensor]
+        nuT = frame[SpectralEddyViscosity]
         return self.__class__(S.backend.reduction.global_mean(fields.physical.les.residual_dissipation(S, nuT)))
 
 
 class EffectiveKolmogorovLengthScale(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        epsilon = frame[DissipationRate].value
-        nu = frame[ViscosityConstant].value
-        nuT = frame[SpectralEddyViscosity].value
+        epsilon = frame[DissipationRate]
+        nu = frame[ViscosityConstant]
+        nuT = frame[SpectralEddyViscosity]
         return self.__class__(if_dissipative(epsilon, ((nu.value + nuT.data[0, 0, 0]) ** 3 / epsilon.data).pow(0.25)))
 
 

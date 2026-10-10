@@ -19,68 +19,68 @@ def if_dissipative(epsilon: IntegralValue[Scalar], value: torch.Tensor) -> Integ
 
 class TotalKineticEnergy(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        u = frame[PhysicalVelocity].value
+        u = frame[PhysicalVelocity]
         return self.__class__(u.backend.reduction.global_mean(fields.physical.velocity.kinetic_energy(u)))
 
 
 class ReynoldsStressTensor(Derived[IntegralValue[Tensor]]):
     def compute(self, frame: Frame) -> Self:
-        u = frame[PhysicalVelocity].value
+        u = frame[PhysicalVelocity]
         return self.__class__(u.backend.reduction.global_mean(fields.physical.velocity.Reynolds_stress_tensor(u)))
 
 
 class RmsVelocity(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        return self.__class__(IntegralValue(frame[TotalKineticEnergy].value.data.sqrt(), Scalar))
+        return self.__class__(IntegralValue(frame[TotalKineticEnergy].data.sqrt(), Scalar))
 
 
 class DissipationRate(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        S = frame[StrainRateTensor].value
-        nu = frame[ViscosityConstant].value
+        S = frame[StrainRateTensor]
+        nu = frame[ViscosityConstant]
         return self.__class__(S.backend.reduction.global_mean(fields.physical.velocity.dissipation(S, nu)))
 
 
 class TotalEnstrophy(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        Omega = frame[RotationRateTensor].value
+        Omega = frame[RotationRateTensor]
         return self.__class__(Omega.backend.reduction.global_mean(fields.physical.velocity.enstrophy(Omega)))
 
 
 class TaylorMicroscale(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        u = frame[RmsVelocity].value
-        epsilon = frame[DissipationRate].value
-        nu = frame[ViscosityConstant].value
-        return self.__class__(if_dissipative(epsilon, u.data * (15.0 * nu.data / epsilon.data).sqrt()))
+        u = frame[RmsVelocity]
+        epsilon = frame[DissipationRate]
+        nu = frame[ViscosityConstant]
+        return self.__class__(if_dissipative(epsilon, u.data * (15.0 * nu.value / epsilon.data).sqrt()))
 
 
 class TaylorReynoldsNumber(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        u = frame[RmsVelocity].value
-        lambda_ = frame[TaylorMicroscale].value
-        nu = frame[ViscosityConstant].value
-        return self.__class__(IntegralValue(u.data * lambda_.data / nu.data, Scalar))
+        u = frame[RmsVelocity]
+        lambda_ = frame[TaylorMicroscale]
+        nu = frame[ViscosityConstant]
+        return self.__class__(IntegralValue(u.data * lambda_.data / nu.value, Scalar))
 
 
 class KolmogorovLengthScale(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        epsilon = frame[DissipationRate].value
-        nu = frame[ViscosityConstant].value
-        return self.__class__(if_dissipative(epsilon, (nu.data**3 / epsilon.data).pow(0.25)))
+        epsilon = frame[DissipationRate]
+        nu = frame[ViscosityConstant]
+        return self.__class__(if_dissipative(epsilon, (nu.value**3 / epsilon.data).pow(0.25)))
 
 
 class KolmogorovTimeScale(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        epsilon = frame[DissipationRate].value
-        nu = frame[ViscosityConstant].value
-        return self.__class__(if_dissipative(epsilon, (nu.data / epsilon.data).pow(0.5)))
+        epsilon = frame[DissipationRate]
+        nu = frame[ViscosityConstant]
+        return self.__class__(if_dissipative(epsilon, (nu.value / epsilon.data).pow(0.5)))
 
 
 class LargestEddyTurnoverTime(Derived[IntegralValue[Scalar]]):
     def compute(self, frame: Frame) -> Self:
-        k = frame[TotalKineticEnergy].value
-        epsilon = frame[DissipationRate].value
+        k = frame[TotalKineticEnergy]
+        epsilon = frame[DissipationRate]
         return self.__class__(if_dissipative(epsilon, k.data / epsilon.data))
 
 
