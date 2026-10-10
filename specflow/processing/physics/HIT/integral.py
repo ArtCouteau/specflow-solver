@@ -27,7 +27,9 @@ class TotalKineticEnergy(Derived[IntegralValue[Scalar]]):
 class ReynoldsStressTensor(Derived[IntegralValue[Tensor]]):
     def compute(self, frame: Frame) -> Self:
         return self.__class__(
-            frame.backend.reduction.global_mean(fields.physical.velocity.Reynolds_stress_tensor(frame[PhysicalVelocity]))
+            frame.backend.reduction.global_mean(
+                fields.physical.velocity.Reynolds_stress_tensor(frame[PhysicalVelocity])
+            )
         )
 
 

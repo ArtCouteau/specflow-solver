@@ -6,7 +6,8 @@ from specflow.core.numerics.operations import fourier
 from specflow.core.physics import fields
 from specflow.core.physics.wrappers.field import Field
 from specflow.core.physics.wrappers.wrapper import Physical, Scalar
-from specflow.processing.physics.HIT.integral import DissipationRate, StrainRateTensor, if_dissipative
+from specflow.processing.physics.HIT.fields import StrainRateTensor
+from specflow.processing.physics.HIT.integral import DissipationRate, if_dissipative
 from specflow.processing.physics.statistics.frame import Frame
 from specflow.processing.physics.statistics.inputs import SpectralEddyViscosity, ViscosityConstant
 from specflow.processing.physics.statistics.quantity import Derived
@@ -40,4 +41,4 @@ class EffectiveKolmogorovLengthScale(Derived[IntegralValue[Scalar]]):
         )
 
 
-ALL = (ResidualDissipationRate,)
+ALL = (ResidualDissipationRate, EffectiveKolmogorovLengthScale)
