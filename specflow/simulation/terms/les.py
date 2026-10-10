@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from specflow.core.numerics.operations import algebra, derivative
 from specflow.core.physics import fields
 from specflow.core.physics.dealias import FourierSmoothing
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, Tensor, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, Tensor, Vector
 from specflow.simulation.terms.term import Term, TermRegistry
 
 

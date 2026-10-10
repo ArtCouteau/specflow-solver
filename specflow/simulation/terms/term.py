@@ -5,8 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic
 
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Spectral, TRank
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Spectral, TRank
 from specflow.core.registry import Registry
 
 

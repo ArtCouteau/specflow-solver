@@ -8,8 +8,7 @@ import torch
 
 from specflow.core.numerics.backend.backend import NumericsBackend
 from specflow.core.numerics.mesh import Mesh
-from specflow.core.physics.quantity.quantity import (
-    Quantity,
+from specflow.core.physics.wrappers.wrapper import (
     Rank,
     Scalar,
     Space,
@@ -17,6 +16,7 @@ from specflow.core.physics.quantity.quantity import (
     TRank,
     TSpace,
     Vector,
+    Wrapper,
 )
 
 TNewRank = TypeVar("TNewRank", bound=Rank)
@@ -32,7 +32,7 @@ class FieldChanges(TypedDict, total=False):
 
 
 @dataclass(frozen=True, eq=False)
-class Field(Quantity, Generic[TRank, TSpace]):
+class Field(Wrapper, Generic[TRank, TSpace]):
     rank: type[TRank]
     space: type[TSpace]
     component: Literal[1, 2, 3]

@@ -8,8 +8,8 @@ import torch
 
 from specflow.core.numerics.backend.backend import NumericsBackend
 from specflow.core.numerics.operations import norm
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, Vector
 
 
 @dataclass(frozen=True)

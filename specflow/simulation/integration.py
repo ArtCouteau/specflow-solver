@@ -7,8 +7,8 @@ from typing import ClassVar, override
 import torch
 
 from specflow.core.numerics.operations import fourier
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Scalar, Spectral, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Scalar, Spectral, Vector
 from specflow.simulation.equation import Equation, TRankEquation
 
 

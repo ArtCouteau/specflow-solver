@@ -1,3 +1,4 @@
-from . import numerics, physics
+from . import collector, graph, numerics, physics
+from .physics.statistics import inputs
 
-__all__ = ['numerics', 'physics']
+__all__ = ["collector", "graph", "inputs", "numerics", "physics"]

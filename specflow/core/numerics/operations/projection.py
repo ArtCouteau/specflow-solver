@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import override
 
 from specflow.core.numerics.mesh import Mesh
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Spectral, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Spectral, Vector
 
 from ...registry import Registry
 from . import algebra

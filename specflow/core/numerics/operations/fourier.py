@@ -1,5 +1,5 @@
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Physical, Spectral, TRank
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Physical, Spectral, TRank
 
 
 def to_spectral(field: Field[TRank, Physical]) -> Field[TRank, Spectral]:

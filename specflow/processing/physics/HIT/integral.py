@@ -1,72 +1,88 @@
+from __future__ import annotations
+
+from typing import Self
+
 import torch
 
-from ....core.numerics.operations import volume
-from ....core.physics import fields
+from specflow.core.physics import fields
+from specflow.core.physics.wrappers.wrapper import Scalar, Tensor
+from specflow.processing.physics.HIT.fields import PhysicalVelocity, RotationRateTensor, StrainRateTensor
+from specflow.processing.physics.statistics.frame import Frame
+from specflow.processing.physics.statistics.inputs import ViscosityConstant
+from specflow.processing.physics.statistics.quantity import Derived
+from specflow.processing.physics.statistics.wrappers import IntegralValue
 
 
-def _rms_velocity(velocity: torch.Tensor) -> torch.Tensor:
-    return total_kinetic_energy(velocity).sqrt()
+def if_dissipative(epsilon: IntegralValue[Scalar], value: torch.Tensor) -> IntegralValue[Scalar]:
+    return IntegralValue(torch.where(epsilon.data > 0.0, value, torch.inf), Scalar)
 
 
-def total_kinetic_energy(velocity: torch.Tensor) -> torch.Tensor:
-    return volume.mean(
-        fields.physical.velocity.kinetic_energy(velocity)
-    )
+class TotalKineticEnergy(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        u = frame[PhysicalVelocity].value
+        return self.__class__(u.backend.reduction.global_mean(fields.physical.velocity.kinetic_energy(u)))
 
 
-def Reynolds_stress_tensor(velocity: torch.Tensor) -> torch.Tensor:
-    return volume.mean(
-        fields.physical.velocity.Reynolds_stress_tensor(velocity)
-    )
+class ReynoldsStressTensor(Derived[IntegralValue[Tensor]]):
+    def compute(self, frame: Frame) -> Self:
+        u = frame[PhysicalVelocity].value
+        return self.__class__(u.backend.reduction.global_mean(fields.physical.velocity.Reynolds_stress_tensor(u)))
 
 
-def dissipation_rate(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    return volume.mean(
-        fields.physical.velocity.dissipation(velocity, viscosity)
-    )
+class RmsVelocity(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        return self.__class__(IntegralValue(frame[TotalKineticEnergy].value.data.sqrt(), Scalar))
 
 
-def total_enstrophy(velocity: torch.Tensor) -> torch.Tensor:
-    return volume.mean(
-        fields.physical.velocity.enstrophy(velocity)
-    )
+class DissipationRate(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        S = frame[StrainRateTensor].value
+        nu = frame[ViscosityConstant].value
+        return self.__class__(S.backend.reduction.global_mean(fields.physical.velocity.dissipation(S, nu)))
 
 
-def Taylor_microscale(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    epsilon = dissipation_rate(velocity, viscosity)
-
-    if epsilon.item() > 0.0:
-        return _rms_velocity(velocity) * (15.0 * viscosity / epsilon).sqrt()
-    else:
-        return torch.tensor(float('inf'), device=velocity.device)
+class TotalEnstrophy(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        Omega = frame[RotationRateTensor].value
+        return self.__class__(Omega.backend.reduction.global_mean(fields.physical.velocity.enstrophy(Omega)))
 
 
-def Reynolds_lambda(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    return _rms_velocity(velocity) * Taylor_microscale(velocity, viscosity) / viscosity
+class TaylorMicroscale(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        u = frame[RmsVelocity].value
+        epsilon = frame[DissipationRate].value
+        nu = frame[ViscosityConstant].value
+        return self.__class__(if_dissipative(epsilon, u.data * (15.0 * nu.data / epsilon.data).sqrt()))
 
 
-def Kolmogorov_length_scale(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    epsilon = dissipation_rate(velocity, viscosity)
-
-    if epsilon.item() > 0.0:
-        return (viscosity**3 / epsilon).pow(0.25)
-    else:
-        return torch.tensor(float('inf'), device=velocity.device)
-
-
-def Kolmogorov_time_scale(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    epsilon = dissipation_rate(velocity, viscosity)
-
-    if epsilon.item() > 0.0:
-        return (viscosity / epsilon).pow(0.5)
-    else:
-        return torch.tensor(float('inf'), device=velocity.device)
+class TaylorReynoldsNumber(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        u = frame[RmsVelocity].value
+        lambda_ = frame[TaylorMicroscale].value
+        nu = frame[ViscosityConstant].value
+        return self.__class__(IntegralValue(u.data * lambda_.data / nu.data, Scalar))
 
 
-def largest_eddy_turnover_time(velocity: torch.Tensor, viscosity: float) -> torch.Tensor:
-    epsilon = dissipation_rate(velocity, viscosity)
+class KolmogorovLengthScale(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        epsilon = frame[DissipationRate].value
+        nu = frame[ViscosityConstant].value
+        return self.__class__(if_dissipative(epsilon, (nu.data**3 / epsilon.data).pow(0.25)))
 
-    if epsilon.item() > 0.0:
-        return total_kinetic_energy(velocity) / epsilon
-    else:
-        return torch.tensor(float('inf'), device=velocity.device)
+
+class KolmogorovTimeScale(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        epsilon = frame[DissipationRate].value
+        nu = frame[ViscosityConstant].value
+        return self.__class__(if_dissipative(epsilon, (nu.data / epsilon.data).pow(0.5)))
+
+
+class LargestEddyTurnoverTime(Derived[IntegralValue[Scalar]]):
+    def compute(self, frame: Frame) -> Self:
+        k = frame[TotalKineticEnergy].value
+        epsilon = frame[DissipationRate].value
+        return self.__class__(if_dissipative(epsilon, k.data / epsilon.data))
+
+
+SCALES = (TaylorMicroscale, TaylorReynoldsNumber, KolmogorovLengthScale, KolmogorovTimeScale, LargestEddyTurnoverTime)
+ALL = (TotalKineticEnergy, ReynoldsStressTensor, RmsVelocity, DissipationRate, TotalEnstrophy, *SCALES)

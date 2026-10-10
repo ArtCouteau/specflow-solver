@@ -5,8 +5,8 @@ from typing import Generic, TypeVar, override
 
 from specflow.core.numerics.operations import fourier
 from specflow.core.numerics.operations.projection import Projector
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Physical, Scalar, Spectral, TRank, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, TRank, Vector
 from specflow.simulation.terms.term import Term
 
 TRankEquation = TypeVar("TRankEquation", bound=Scalar | Vector)

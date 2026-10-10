@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from specflow.core import defs
 from specflow.core.numerics.backend.backend import NumericsBackend
-from specflow.core.physics.quantity.quantity import Scalar, Vector
+from specflow.core.physics.wrappers.wrapper import Scalar, Vector
 from specflow.simulation.control import SimulationControls
 from specflow.simulation.equation import Equation
 from specflow.simulation.integration import TimeIntegrator

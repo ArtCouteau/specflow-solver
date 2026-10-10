@@ -1,5 +1,5 @@
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Scalar, Tensor, TSpace, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Scalar, Tensor, TSpace, Vector
 
 
 def l2_norm(field: Field[Vector, TSpace]) -> Field[Scalar, TSpace]:

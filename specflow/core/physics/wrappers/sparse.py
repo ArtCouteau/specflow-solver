@@ -7,12 +7,12 @@ import torch
 
 from specflow.core.numerics.backend.backend import NumericsBackend
 from specflow.core.numerics.mesh import Mesh
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Quantity, Scalar, Spectral, TRank
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Scalar, Spectral, TRank, Wrapper
 
 
 @dataclass(frozen=True, eq=False)
-class SparseField(Quantity, Generic[TRank]):
+class SparseField(Wrapper, Generic[TRank]):
     rank: type[TRank]
     component: Literal[1, 2, 3]
     dimension: Literal[1, 2, 3]

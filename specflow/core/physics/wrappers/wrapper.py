@@ -30,5 +30,5 @@ TSpace = TypeVar("TSpace", bound=Space)
 
 
 @dataclass(frozen=True, eq=False)
-class Quantity:
+class Wrapper:
     data: torch.Tensor

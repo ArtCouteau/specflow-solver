@@ -9,8 +9,8 @@ import torch
 
 from specflow.core.numerics.mesh import Mesh
 from specflow.core.numerics.operations import algebra, filters, fourier
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Physical, Rank, Scalar, Spectral
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Physical, Rank, Scalar, Spectral
 
 RankA = TypeVar("RankA", bound=Rank)
 RankB = TypeVar("RankB", bound=Rank)

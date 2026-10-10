@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 import torch
 
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Spectral, Vector
-from specflow.core.physics.quantity.sparse import SparseField
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.sparse import SparseField
+from specflow.core.physics.wrappers.wrapper import Spectral, Vector
 from specflow.simulation.terms.term import Term, TermRegistry
 
 

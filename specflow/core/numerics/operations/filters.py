@@ -1,6 +1,6 @@
 from specflow.core.numerics.mesh import Mesh
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Scalar, Spectral
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Scalar, Spectral
 
 
 def spherical_truncation(mesh: Mesh, maxWavenumber: float) -> Field[Scalar, Spectral]:

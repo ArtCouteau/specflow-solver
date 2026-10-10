@@ -1,6 +1,6 @@
 from specflow.core.numerics.operations import derivative, norm, rank
-from specflow.core.physics.quantity.field import Field
-from specflow.core.physics.quantity.quantity import Scalar, Spectral, Tensor, Vector
+from specflow.core.physics.wrappers.field import Field
+from specflow.core.physics.wrappers.wrapper import Scalar, Spectral, Tensor, Vector
 
 
 def vorticity(velocity: Field[Vector, Spectral]) -> Field[Vector, Spectral]:
