@@ -1,11 +1,9 @@
-from specflow.core.numerics.operations import algebra, fourier, norm
+from specflow.core.numerics.operations import algebra, norm
 from specflow.core.physics.wrappers.field import Field
-from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, Tensor
+from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Tensor
 
 
 def residual_dissipation(
-    strainRateTensor: Field[Tensor, Physical], eddyViscosity: Field[Scalar, Spectral]
+    strainRateTensor: Field[Tensor, Physical], eddyViscosity: Field[Scalar, Physical]
 ) -> Field[Scalar, Physical]:
-    return 2.0 * algebra.mul_scalar_scalar(
-        fourier.to_physical(eddyViscosity), norm.square_frobenius_norm(strainRateTensor)
-    )
+    return 2.0 * algebra.mul_scalar_scalar(eddyViscosity, norm.square_frobenius_norm(strainRateTensor))
