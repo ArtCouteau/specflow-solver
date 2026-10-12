@@ -1,33 +1,22 @@
-import torch
+from __future__ import annotations
 
-from ...numerics import shell
-from ....core import context
-from ....core.numerics.operations import algebra, volume
-from ....simulation import equation, solution
+from typing import TYPE_CHECKING, Any
+
+from specflow.core.physics import fields
+from specflow.processing.numerics.rule import Rule, derive
+
+if TYPE_CHECKING:
+    from specflow.core.physics.wrappers.wrapper import Vector
+    from specflow.simulation.equation import Equation
 
 
-def kinetic_energy(
-        equation: equation.NavierStokesEquation,
-        velocity: torch.Tensor,
-        timestamp: str,
-        shells: shell.SpectralShells
-) -> dict[str, torch.Tensor]:
-    tmp: dict[str, torch.Tensor] = {}
-
-    for term in equation.terms.values():
-        tmp[term.tag] = torch.zeros(
-            (shells.nShells,),
-            dtype=context.get().config.get('numerics/precision/float', torch.dtype),
-            device=velocity.device
+def rules(equation: Equation[Vector]) -> list[Rule[Any]]:
+    return [
+        derive(
+            f"{equation.tag}{term.tag}EnergyTransfer",
+            fields.spectral.velocity.modal_energy_transfer,
+            equation.tag,
+            f"{equation.tag}{term.tag}Contribution",
         )
-
-        for index in range(shells.nShells):
-            tmp[term.tag][index] = volume.sum_over_spectral_domain(
-                shells.shell(index)
-                * algebra.inner_vector_vector(
-                    velocity.conj(),
-                    term.reconstruct(solution.SolutionVariable({'velocity': velocity}), timestamp)
-                ).real
-            )
-
-    return tmp
+        for term in equation.terms.values()
+    ]

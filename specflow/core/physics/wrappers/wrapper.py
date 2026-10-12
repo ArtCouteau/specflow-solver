@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import torch
 
@@ -32,3 +32,7 @@ TSpace = TypeVar("TSpace", bound=Space)
 @dataclass(frozen=True, eq=False)
 class Wrapper:
     data: torch.Tensor
+
+    @property
+    def kind(self) -> Any:
+        return type(self)

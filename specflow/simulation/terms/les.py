@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 from specflow.core.numerics.operations import algebra, derivative
 from specflow.core.physics import fields
 from specflow.core.physics.dealias import FourierSmoothing
 from specflow.core.physics.wrappers.field import Field
 from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, Tensor, Vector
+from specflow.processing.numerics.rule import Rule, derive
 from specflow.simulation.terms.term import Term, TermRegistry
 
 
@@ -28,6 +30,9 @@ class LESModelTerm(Term[Vector]):
                 self.smoothing.apply(self._stress_tensor, fields.spectral.velocity.strain_rate_tensor(self.velocity))
             )
         )
+
+    def rules(self) -> list[Rule[Any]]:
+        return [derive("EddyViscosity", self._eddy_viscosity, "StrainRateTensor")]
 
 
 @TermRegistry.register("LES/Smagorinsky")

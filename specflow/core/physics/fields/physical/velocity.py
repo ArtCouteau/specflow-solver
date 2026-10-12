@@ -5,10 +5,6 @@ from specflow.core.physics.wrappers.field import Field
 from specflow.core.physics.wrappers.wrapper import Physical, Scalar, Spectral, Tensor, Vector
 
 
-def physical_velocity(velocity: Field[Vector, Spectral]) -> Field[Vector, Physical]:
-    return fourier.to_physical(velocity)
-
-
 def velocity_gradient(velocity: Field[Vector, Spectral]) -> Field[Tensor, Physical]:
     return fourier.to_physical(derivative.gradient_vector(velocity))
 

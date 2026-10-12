@@ -31,5 +31,9 @@ class OrnsteinUhlenbeckForcingTerm(Term[Vector]):
 
         rhs.data.add_(self.coefficients.data.to_dense())
 
+    def contribution(self, out: Field[Vector, Spectral], time: float) -> None:
+        # Unlike compute, does not advance the Ornstein-Uhlenbeck process
+        out.data.add_(self.coefficients.data.to_dense())
+
     def diagnostic_fields(self, time: float) -> dict[str, Field[Vector, Spectral]]:
         return {"coefficients": self.coefficients.to_dense()}

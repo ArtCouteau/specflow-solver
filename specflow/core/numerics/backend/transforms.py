@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import override
+from typing import TYPE_CHECKING, override
 
 import torch
 
-from specflow.core.physics.wrappers.field import Field
 from specflow.core.physics.wrappers.wrapper import Physical, Spectral, TRank
+
+if TYPE_CHECKING:
+    from specflow.core.physics.wrappers.field import Field
 
 
 class TransformsBackend(ABC):

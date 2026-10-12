@@ -1,9 +1,13 @@
-from abc import ABC, abstractmethod
-from typing import override
+from __future__ import annotations
 
-from specflow.core.physics.wrappers.field import Field
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, override
+
+from specflow.core.physics.wrappers.statistics import IntegralValue
 from specflow.core.physics.wrappers.wrapper import Physical, TRank, TSpace
-from specflow.processing.physics.statistics.wrappers import IntegralValue
+
+if TYPE_CHECKING:
+    from specflow.core.physics.wrappers.field import Field
 
 
 class ReductionBackend(ABC):

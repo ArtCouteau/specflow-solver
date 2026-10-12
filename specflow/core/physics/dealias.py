@@ -49,7 +49,7 @@ class TwoThirdsDealias(QuadraticDealias):
         a: Field[RankA, Spectral],
         b: Field[RankB, Spectral],
     ) -> Field[RankOut, Spectral]:
-        return self._pseudo_spectral_pass(operation, a, b)
+        return algebra.scale(self._pseudo_spectral_pass(operation, a, b), self._filter)
 
 
 class PhaseshiftDealias(QuadraticDealias):
@@ -70,11 +70,14 @@ class PhaseshiftDealias(QuadraticDealias):
         a: Field[RankA, Spectral],
         b: Field[RankB, Spectral],
     ) -> Field[RankOut, Spectral]:
-        return self._pseudo_spectral_pass(operation, a, b).add_(
-            algebra.scale(
-                self._pseudo_spectral_pass(operation, algebra.scale(a, self._shift), algebra.scale(b, self._shift)),
-                self._unshift,
-            )
+        return algebra.scale(
+            self._pseudo_spectral_pass(operation, a, b).add_(
+                algebra.scale(
+                    self._pseudo_spectral_pass(operation, algebra.scale(a, self._shift), algebra.scale(b, self._shift)),
+                    self._unshift,
+                )
+            ),
+            self._filter,
         )
 
 
