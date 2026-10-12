@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Generic, Literal
+from typing import Any, Generic, Literal
 
 import torch
 
@@ -45,6 +45,10 @@ class Constant(Wrapper, Generic[TRank]):
             backend,
             mesh,
         )
+
+    @property
+    def kind(self) -> Any:
+        return Constant[self.rank]
 
     @cached_property
     def value(self: Constant[Scalar]) -> float:

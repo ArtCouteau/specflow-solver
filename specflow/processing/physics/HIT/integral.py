@@ -1,104 +1,52 @@
 from __future__ import annotations
 
-from typing import Self
-
 import torch
 
-from specflow.core.physics import fields
-from specflow.core.physics.wrappers.wrapper import Scalar, Tensor
-from specflow.processing.physics.HIT.fields import PhysicalVelocity, RotationRateTensor, StrainRateTensor
-from specflow.processing.physics.statistics.frame import Frame
-from specflow.processing.physics.statistics.inputs import ViscosityConstant
-from specflow.processing.physics.statistics.quantity import Derived
-from specflow.processing.physics.statistics.wrappers import IntegralValue
+from specflow.core.physics.wrappers.constant import Constant
+from specflow.core.physics.wrappers.statistics import IntegralValue
+from specflow.core.physics.wrappers.wrapper import Scalar
+from specflow.processing.numerics.rule import derive, register
 
 
-def if_dissipative(epsilon: IntegralValue[Scalar], value: torch.Tensor) -> IntegralValue[Scalar]:
-    return IntegralValue(torch.where(epsilon.data > 0.0, value, torch.inf), Scalar)
+def if_dissipative(dissipation: IntegralValue[Scalar], value: torch.Tensor) -> IntegralValue[Scalar]:
+    return IntegralValue(torch.where(dissipation.data > 0.0, value, torch.inf), Scalar)
 
 
-class TotalKineticEnergy(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            frame.backend.reduction.global_mean(fields.physical.velocity.kinetic_energy(frame[PhysicalVelocity]))
-        )
+def rms_velocity(kineticEnergy: IntegralValue[Scalar]) -> IntegralValue[Scalar]:
+    return IntegralValue(kineticEnergy.data.sqrt(), Scalar)
 
 
-class ReynoldsStressTensor(Derived[IntegralValue[Tensor]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            frame.backend.reduction.global_mean(
-                fields.physical.velocity.Reynolds_stress_tensor(frame[PhysicalVelocity])
-            )
-        )
+def Taylor_microscale(
+    rmsVelocity: IntegralValue[Scalar], viscosity: Constant[Scalar], dissipation: IntegralValue[Scalar]
+) -> IntegralValue[Scalar]:
+    return if_dissipative(dissipation, rmsVelocity.data * (15.0 * viscosity.value / dissipation.data).sqrt())
 
 
-class RmsVelocity(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(IntegralValue(frame[TotalKineticEnergy].data.sqrt(), Scalar))
+def Taylor_Reynolds_number(
+    rmsVelocity: IntegralValue[Scalar], TaylorMicroscale: IntegralValue[Scalar], viscosity: Constant[Scalar]
+) -> IntegralValue[Scalar]:
+    return IntegralValue(rmsVelocity.data * TaylorMicroscale.data / viscosity.value, Scalar)
 
 
-class DissipationRate(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            frame.backend.reduction.global_mean(
-                fields.physical.velocity.dissipation(frame[StrainRateTensor], frame[ViscosityConstant])
-            )
-        )
+def Kolmogorov_length_scale(viscosity: Constant[Scalar], dissipation: IntegralValue[Scalar]) -> IntegralValue[Scalar]:
+    return if_dissipative(dissipation, (viscosity.value**3 / dissipation.data).pow(0.25))
 
 
-class TotalEnstrophy(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            frame.backend.reduction.global_mean(fields.physical.velocity.enstrophy(frame[RotationRateTensor]))
-        )
+def Kolmogorov_time_scale(viscosity: Constant[Scalar], dissipation: IntegralValue[Scalar]) -> IntegralValue[Scalar]:
+    return if_dissipative(dissipation, (viscosity.value / dissipation.data).pow(0.5))
 
 
-class TaylorMicroscale(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            if_dissipative(
-                frame[DissipationRate],
-                frame[RmsVelocity].data * (15.0 * frame[ViscosityConstant].value / frame[DissipationRate].data).sqrt(),
-            )
-        )
+def largest_eddy_turnover_time(
+    kineticEnergy: IntegralValue[Scalar], dissipation: IntegralValue[Scalar]
+) -> IntegralValue[Scalar]:
+    return if_dissipative(dissipation, kineticEnergy.data / dissipation.data)
 
 
-class TaylorReynoldsNumber(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            IntegralValue(
-                frame[RmsVelocity].data * frame[TaylorMicroscale].data / frame[ViscosityConstant].value, Scalar
-            )
-        )
-
-
-class KolmogorovLengthScale(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            if_dissipative(
-                frame[DissipationRate],
-                (frame[ViscosityConstant].value ** 3 / frame[DissipationRate].data).pow(0.25),
-            )
-        )
-
-
-class KolmogorovTimeScale(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            if_dissipative(
-                frame[DissipationRate],
-                (frame[ViscosityConstant].value / frame[DissipationRate].data).pow(0.5),
-            )
-        )
-
-
-class LargestEddyTurnoverTime(Derived[IntegralValue[Scalar]]):
-    def compute(self, frame: Frame) -> Self:
-        return self.__class__(
-            if_dissipative(frame[DissipationRate], frame[TotalKineticEnergy].data / frame[DissipationRate].data)
-        )
-
-
-SCALES = (TaylorMicroscale, TaylorReynoldsNumber, KolmogorovLengthScale, KolmogorovTimeScale, LargestEddyTurnoverTime)
-ALL = (TotalKineticEnergy, ReynoldsStressTensor, RmsVelocity, DissipationRate, TotalEnstrophy, *SCALES)
+register(
+    derive("RmsVelocity", rms_velocity, "KineticEnergy"),
+    derive("TaylorMicroscale", Taylor_microscale, "RmsVelocity", "ViscosityConstant", "Dissipation"),
+    derive("TaylorReynoldsNumber", Taylor_Reynolds_number, "RmsVelocity", "TaylorMicroscale", "ViscosityConstant"),
+    derive("KolmogorovLengthScale", Kolmogorov_length_scale, "ViscosityConstant", "Dissipation"),
+    derive("KolmogorovTimeScale", Kolmogorov_time_scale, "ViscosityConstant", "Dissipation"),
+    derive("LargestEddyTurnoverTime", largest_eddy_turnover_time, "KineticEnergy", "Dissipation"),
+)

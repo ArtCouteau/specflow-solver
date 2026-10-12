@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, TypedDict, TypeVar, Unpack, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypedDict, TypeVar, Unpack, overload
 
 import torch
 
-from specflow.core.numerics.backend.backend import NumericsBackend
-from specflow.core.numerics.mesh import Mesh
 from specflow.core.physics.wrappers.wrapper import (
     Rank,
     Scalar,
@@ -18,6 +16,10 @@ from specflow.core.physics.wrappers.wrapper import (
     Vector,
     Wrapper,
 )
+
+if TYPE_CHECKING:
+    from specflow.core.numerics.backend.backend import NumericsBackend
+    from specflow.core.numerics.mesh import Mesh
 
 TNewRank = TypeVar("TNewRank", bound=Rank)
 TNewSpace = TypeVar("TNewSpace", bound=Space)
@@ -39,6 +41,10 @@ class Field(Wrapper, Generic[TRank, TSpace]):
     dimension: Literal[1, 2, 3]
     backend: NumericsBackend = field(repr=False)
     mesh: Mesh = field(repr=False)
+
+    @property
+    def kind(self) -> Any:
+        return Field[self.rank, self.space]
 
     @property
     def component_axes(self: Field[Vector, TSpace] | Field[Tensor, TSpace]) -> tuple[int, ...]:

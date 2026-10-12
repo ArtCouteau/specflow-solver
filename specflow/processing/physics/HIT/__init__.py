@@ -1,3 +1,3 @@
-from . import budget, flux, integral, spectra
+from . import budget, fields, integral, spectra
 
-__all__ = ['budget', 'flux', 'integral', 'spectra']
+__all__ = ["budget", "fields", "integral", "spectra"]

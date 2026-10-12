@@ -25,6 +25,14 @@ class Mesh:
     physical: PhysicalGrid
     spectral: SpectralGrid
 
+    @staticmethod
+    def build(layout: MeshLayout, numerics: NumericsBackend) -> Mesh:
+        mesh = Mesh.__new__(Mesh)
+        object.__setattr__(mesh, "layout", layout)
+        object.__setattr__(mesh, "physical", PhysicalGrid(mesh, numerics))
+        object.__setattr__(mesh, "spectral", SpectralGrid(mesh, numerics))
+        return mesh
+
 
 class SpectralGrid:
     wavenumbers: Field[Vector, Spectral]

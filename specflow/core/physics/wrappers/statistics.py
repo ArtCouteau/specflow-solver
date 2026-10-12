@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import torch
 
@@ -29,12 +29,20 @@ TMeasure = TypeVar("TMeasure", bound=Measure)
 class IntegralValue(Wrapper, Generic[TRank]):
     rank: type[TRank]
 
+    @property
+    def kind(self) -> Any:
+        return IntegralValue[self.rank]
+
 
 @dataclass(frozen=True, eq=False)
 class Spectrum(Wrapper, Generic[TRank, TMeasure]):
     rank: type[TRank]
     measure: type[TMeasure]
     shells: SpectralShells = field(repr=False)
+
+    @property
+    def kind(self) -> Any:
+        return Spectrum[self.rank, self.measure]
 
     def cumulate(self: Spectrum[TRank, Density]) -> Spectrum[TRank, Accumulation]:
         return Spectrum(self.data.cumsum(dim=-1), self.rank, Accumulation, self.shells)
