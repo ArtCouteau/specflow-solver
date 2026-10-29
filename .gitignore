@@ -4,3 +4,6 @@
 
 # ignore environment files
 *.env
+
+# ignore test file
+test.py
