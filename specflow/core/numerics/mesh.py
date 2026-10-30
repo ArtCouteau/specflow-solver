@@ -40,9 +40,12 @@ class Mesh:
         return algebra.scale_field(scalar, self._nabla())
 
     def gradient_vector(
-        self, vector: Complex[Array, " {self.dimension}*grid"]
+        self, vector: Complex[Array, " {self.dimension} *grid"]
     ) -> Complex[Array, " {self.dimension} {self.dimension} *grid"]:
         return algebra.outer_vector_vector(self._nabla(), vector, self)
+
+    def curl_vector_3D(self, vector: Complex[Array, " 3 *grid"]) -> Complex[Array, " 3 *grid"]:
+        return algebra.cross_vector_vector_3D(self._nabla(), vector, self)
 
     def _nabla(self) -> Complex[Array, " {self.dimension} *grid"]:
         return 1.0j * self.wavenumbers()
