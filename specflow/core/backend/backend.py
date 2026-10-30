@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from matplotlib.transforms import Transform
+from specflow.core.backend.reduction import Reduction
+from specflow.core.backend.transform import Transform
 
 
 @dataclass(frozen=True)
 class Backend:
+    reduction: Reduction
     transform: Transform
