@@ -4,8 +4,6 @@ from typing import Protocol
 from jax import Array
 from jaxtyping import Float
 
-from specflow.core.numerics.mesh import Mesh
-
 
 class Reduction(Protocol):
     def max(self, field: Float[Array, "*grid"]) -> Float[Array, ""]: ...
@@ -15,8 +13,6 @@ class Reduction(Protocol):
 
 @dataclass(frozen=True)
 class SerialReduction:
-    mesh: Mesh
-
     def max(self, field: Float[Array, "*grid"]) -> Float[Array, ""]:
         return field.max()
 
