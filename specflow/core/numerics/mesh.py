@@ -5,7 +5,9 @@ from typing import Literal
 
 import jax.numpy as jnp
 from jax import Array
-from jaxtyping import Int
+from jaxtyping import Int, Float, Complex
+
+from specflow.core.numerics.operations import algebra
 
 
 @dataclass(frozen=True)
@@ -33,3 +35,17 @@ class Mesh:
         one_dimensional.append(jnp.fft.rfftfreq(self.number_of_points, 1.0 / self.number_of_points))
 
         return jnp.stack(jnp.meshgrid(*one_dimensional, indexing="ij"))
+
+    def gradient_scalar(self, scalar: Complex[Array, "*grid"]) -> Complex[Array, " {self.dimension} *grid"]:
+        return algebra.scale_field(scalar, self._nabla())
+
+    def gradient_vector(
+        self, vector: Complex[Array, " {self.dimension}*grid"]
+    ) -> Complex[Array, " {self.dimension} {self.dimension} *grid"]:
+        return algebra.outer_vector_vector(self._nabla(), vector, self)
+
+    def _nabla(self) -> Complex[Array, " {self.dimension} *grid"]:
+        return 1.0j * self.wavenumbers()
+
+    def _nabla_squared(self) -> Float[Array, "*grid"]:
+        return -1.0 * self.wavenumbers() ** 2
