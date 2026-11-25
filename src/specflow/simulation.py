@@ -3,7 +3,7 @@
 import logging
 import math
 import time as clock
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 
 import torch
 
@@ -134,7 +134,7 @@ class Simulation:
         stepper: Stepper,
         state: State,
         start: float,
-        stops: Iterator[float] | Sequence[float],
+        stops: Iterable[float],
         writer: OutputWriter | None,
     ) -> None:
         time = start
