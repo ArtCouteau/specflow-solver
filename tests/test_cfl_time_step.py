@@ -104,3 +104,22 @@ def test_a_fluid_at_rest_grows_the_time_step_by_the_maximum_growth(
     for snapshot in snapshots(mesh, tmp_path):
         expected = INITIAL * 1.2**snapshot.step
         assert math.isclose(snapshot.time_step, expected, rel_tol=1e-12)
+
+
+def test_a_resumed_run_reproduces_the_uninterrupted_run(tmp_path: Path) -> None:
+    mesh = make_mesh()
+    initial = taylor_green_with_mean_flow(mesh)
+    make_simulation(mesh, Outputs(tmp_path / "whole", INTERVAL)).run(initial, 0, 1)
+    make_simulation(mesh, Outputs(tmp_path / "split", INTERVAL)).run(initial, 0, 0.5)
+
+    outputs = Outputs(tmp_path / "split", INTERVAL, resume=True)
+    latest = outputs.latest_snapshot(mesh)
+    simulation = make_simulation(mesh, outputs, initial=latest.time_step)
+    final = simulation.run(latest.state, latest.time, 1)
+
+    whole = snapshots(mesh, tmp_path / "whole")
+    split = snapshots(mesh, tmp_path / "split")
+    assert [(s.time, s.step, s.time_step) for s in split] == [
+        (s.time, s.step, s.time_step) for s in whole
+    ]
+    assert torch.equal(final["velocity"], whole[-1].state["velocity"])
