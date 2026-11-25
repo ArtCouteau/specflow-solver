@@ -215,6 +215,32 @@ def test_standardized_moments_keep_the_axes_after_the_order_axis() -> None:
         assert actual.tolist() == pytest.approx(values, abs=1e-14)
 
 
+def test_standardized_moments_of_a_constant_component_are_undefined() -> None:
+    mesh = make_mesh(1, 16)
+    x = mesh.coordinates[0]
+    field_physical = torch.stack([torch.sin(x), torch.zeros_like(x), 3 + 0 * x])
+
+    _, variance, skewness, flatness = distributions.standardized_moments(
+        distributions.raw_moments(mesh, field_physical)
+    )
+
+    assert variance.tolist() == pytest.approx([0.5, 0, 0], abs=1e-14)
+    assert skewness[0].item() == pytest.approx(0, abs=1e-14)
+    assert flatness[0].item() == pytest.approx(1.5, rel=1e-14)
+    assert skewness[1:].isnan().all()
+    assert flatness[1:].isnan().all()
+
+
+def test_a_round_off_negative_variance_is_zero() -> None:
+    moments = torch.tensor([1.0, 1.0 - 2**-52, 1.0, 1.0], dtype=torch.float64)
+
+    _, variance, skewness, flatness = distributions.standardized_moments(moments)
+
+    assert variance.item() == 0
+    assert skewness.isnan().item()
+    assert flatness.isnan().item()
+
+
 def test_standardized_moments_need_four_orders() -> None:
     with pytest.raises(ValueError, match="4"):
         distributions.standardized_moments(torch.ones(3, 2))

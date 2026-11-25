@@ -60,7 +60,8 @@ class Outputs:
             refusing a directory that holds snapshots.
         sampled: Functions of (state, time), by name, evaluated at each sample
             time, which is each output time, and written into its snapshot. Their
-            names are disjoint from those of ``diagnostics``.
+            names are disjoint from those of ``diagnostics``, and no name of
+            either holds a ``/``.
     """
 
     def __init__(
@@ -92,6 +93,9 @@ class Outputs:
                 raise ValueError(f"diagnostic name {name!r} is reserved")
             if name in self.sampled:
                 raise ValueError(f"sampled diagnostic name {name!r} is reserved")
+        for name in (*self.diagnostics, *self.sampled):
+            if "/" in name:
+                raise ValueError(f"diagnostic name {name!r} holds a '/'")
         shared = sorted(self.sampled.keys() & self.diagnostics.keys())
         if shared:
             raise ValueError(
@@ -120,7 +124,6 @@ class OutputWriter:
         self._writes = mesh.decomposition.rank == 0
         self._commit = code_commit()
         self._time_series = outputs.path / TIME_SERIES_NAME
-        self._shells = Shells(mesh) if outputs.sampled else None
         self._times: list[float] = []
         self._steps: list[int] = []
         self._buffers: dict[str, list[torch.Tensor]] = {
@@ -132,6 +135,13 @@ class OutputWriter:
         else:
             self.step, self._index = 0, 0
             self._check_fresh()
+        self._shells: dict[str, torch.Tensor] = {}
+        if outputs.sampled:
+            shells = Shells(mesh)
+            self._shells = {
+                "wavenumbers": shells.wavenumbers.cpu(),
+                "counts": shells.counts.cpu(),
+            }
 
     def sample(self, state: State, time: float, step: int) -> None:
         """Buffer copies of the diagnostics on device on an evaluation step."""
@@ -176,14 +186,8 @@ class OutputWriter:
                     snapshot.create_dataset(f"state/{key}", data=tensor.cpu().numpy())
                 for name, tensor in sampled.items():
                     snapshot.create_dataset(f"diagnostics/{name}", data=tensor.numpy())
-                if self._shells is not None:
-                    shells = self._shells
-                    snapshot.create_dataset(
-                        "shells/wavenumbers", data=shells.wavenumbers.cpu().numpy()
-                    )
-                    snapshot.create_dataset(
-                        "shells/counts", data=shells.counts.cpu().numpy()
-                    )
+                for name, tensor in self._shells.items():
+                    snapshot.create_dataset(f"shells/{name}", data=tensor.numpy())
             self._append_rows(columns)
         self._index += 1
         self._times.clear()

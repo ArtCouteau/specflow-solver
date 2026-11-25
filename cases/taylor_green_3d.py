@@ -15,6 +15,7 @@ Usage: ``python cases/taylor_green_3d.py N [--output DIRECTORY] [--resume]``.
 import argparse
 import logging
 import math
+from collections.abc import Callable
 from pathlib import Path
 
 import h5py
@@ -77,6 +78,21 @@ def read_column(series: h5py.File, name: str) -> torch.Tensor:
     return torch.from_numpy(dataset[()])
 
 
+def per_sample_time[T](
+    compute: Callable[[State, float], T],
+) -> Callable[[State, float], T]:
+    """Return ``compute``, evaluated once per sample time and reused within it."""
+    latest: dict[float, T] = {}
+
+    def reused(state: State, time: float) -> T:
+        if time not in latest:
+            latest.clear()
+            latest[time] = compute(state, time)
+        return latest[time]
+
+    return reused
+
+
 def sampled_diagnostics(mesh: Mesh, equation: Equation) -> dict[str, Diagnostic]:
     """Return the diagnostics written into each snapshot, by name."""
     shells = Shells(mesh)
@@ -87,13 +103,18 @@ def sampled_diagnostics(mesh: Mesh, equation: Equation) -> dict[str, Diagnostic]
         dtype=mesh.dtype,
         device=mesh.device,
     )
+    contributions = per_sample_time(equation.contributions)
+
+    @per_sample_time
+    def derivatives_physical(state: State, time: float) -> torch.Tensor:
+        return diagnostics.longitudinal_derivatives(mesh, state["velocity"])
 
     def energy_spectrum(state: State, time: float) -> torch.Tensor:
         return spectra.energy_spectrum(shells, state["velocity"])
 
     def budget_spectrum(term: str) -> Diagnostic:
         def budget(state: State, time: float) -> torch.Tensor:
-            contribution_spectral = equation.contributions(state, time)[term]
+            contribution_spectral = contributions(state, time)[term]
             return spectra.budget_spectrum(
                 shells, state["velocity"], contribution_spectral
             )
@@ -101,16 +122,10 @@ def sampled_diagnostics(mesh: Mesh, equation: Equation) -> dict[str, Diagnostic]
         return budget
 
     def derivative_moments(state: State, time: float) -> torch.Tensor:
-        derivatives_physical = diagnostics.longitudinal_derivatives(
-            mesh, state["velocity"]
-        )
-        return distributions.raw_moments(mesh, derivatives_physical)
+        return distributions.raw_moments(mesh, derivatives_physical(state, time))
 
     def derivative_counts(state: State, time: float) -> torch.Tensor:
-        derivatives_physical = diagnostics.longitudinal_derivatives(
-            mesh, state["velocity"]
-        )
-        return distributions.histogram(mesh, derivatives_physical, edges)
+        return distributions.histogram(mesh, derivatives_physical(state, time), edges)
 
     return {
         "energy_spectrum": energy_spectrum,

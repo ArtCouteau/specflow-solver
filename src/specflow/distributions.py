@@ -36,9 +36,11 @@ def histogram(
     count of the values below the first edge and before an overflow count of the
     values at or above the last edge.
     """
-    bins = torch.bucketize(field_physical, edges, right=True)
-    ones = torch.ones_like(field_physical, dtype=torch.int64)
-    return mesh.decomposition.binned_sum(ones, bins, edges.numel() + 1)
+    bins_physical = torch.bucketize(field_physical, edges, right=True)
+    ones_physical = bins_physical.new_ones(()).expand_as(bins_physical)
+    return mesh.decomposition.binned_sum(
+        ones_physical, bins_physical, edges.numel() + 1
+    )
 
 
 def standardized_moments(
@@ -48,7 +50,8 @@ def standardized_moments(
 
     The skewness is $\langle f'^3 \rangle / \langle f'^2 \rangle^{3/2}$ and the
     flatness $\langle f'^4 \rangle / \langle f'^2 \rangle^2$. Only the first four
-    orders are read.
+    orders are read. A variance below zero by round-off is zero, and the skewness
+    and flatness of a component of zero variance are NaN.
     """
     if moments.shape[0] < 4:
         raise ValueError(
@@ -57,13 +60,14 @@ def standardized_moments(
         )
     first, second, third, fourth = moments[:4]
     mean_square = first.square()
-    variance = second - mean_square
+    variance = (second - mean_square).clamp_(min=0)
     third_central = third - 3 * first * second + 2 * first * mean_square
     fourth_central = (
         fourth - 4 * first * third + 6 * mean_square * second - 3 * mean_square.square()
     )
-    skewness = third_central.div_(variance.pow(1.5))
-    flatness = fourth_central.div_(variance.square())
+    constant = variance == 0
+    skewness = third_central.div_(variance.pow(1.5)).masked_fill_(constant, torch.nan)
+    flatness = fourth_central.div_(variance.square()).masked_fill_(constant, torch.nan)
     return first.clone(), variance, skewness, flatness
 
 
