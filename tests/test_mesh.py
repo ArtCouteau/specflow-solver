@@ -30,6 +30,7 @@ def make_mesh(
 def mesh_arrays(mesh: Mesh) -> dict[str, torch.Tensor]:
     return {
         "wavenumbers": mesh.wavenumbers,
+        "derivative_wavenumbers": mesh.derivative_wavenumbers,
         "wavenumbers_squared": mesh.wavenumbers_squared,
         "inverse_wavenumbers_squared": mesh.inverse_wavenumbers_squared,
         "parseval_weights": mesh.parseval_weights,
@@ -121,13 +122,15 @@ def test_wavenumbers_are_two_pi_over_length_times_the_integer() -> None:
     )
 
 
-def test_inverse_wavenumbers_squared_is_zero_at_the_mean() -> None:
+def test_inverse_wavenumbers_squared_inverts_the_derivative_wavenumbers() -> None:
     mesh = make_mesh(8, 3)
     inverse = mesh.inverse_wavenumbers_squared
+    derivative_squared = mesh.derivative_wavenumbers.square().sum(dim=0)
+    nonzero = derivative_squared > 0
     assert inverse[0, 0, 0].item() == 0.0
+    assert torch.all(inverse[~nonzero] == 0)
     torch.testing.assert_close(
-        (inverse * mesh.wavenumbers_squared)[mesh.wavenumbers_squared > 0],
-        torch.ones_like(inverse)[mesh.wavenumbers_squared > 0],
+        (inverse * derivative_squared)[nonzero], torch.ones_like(inverse)[nonzero]
     )
 
 
