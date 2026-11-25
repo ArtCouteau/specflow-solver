@@ -128,6 +128,8 @@ class Mesh:
     def _validate(self) -> None:
         if self.points < 2 or self.points % 2:
             raise ValueError(f"points must be even and at least 2, got {self.points}")
+        if not (math.isfinite(self.length) and self.length > 0):
+            raise ValueError(f"length must be positive and finite, got {self.length}")
         if self.dimension not in (1, 2, 3):
             raise ValueError(f"dimension must be 1, 2 or 3, got {self.dimension}")
         if self.dtype not in COMPLEX_DTYPES:

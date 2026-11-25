@@ -44,6 +44,12 @@ def test_odd_number_of_points_raises(points: int) -> None:
         make_mesh(points, 2)
 
 
+@pytest.mark.parametrize("length", [0.0, -1.0, math.inf, math.nan])
+def test_length_other_than_positive_and_finite_raises(length: float) -> None:
+    with pytest.raises(ValueError, match="length"):
+        Mesh(8, length, 2, SerialDecomposition(8, 2))
+
+
 @pytest.mark.parametrize("dimension", [0, 4])
 def test_dimension_outside_one_to_three_raises(dimension: int) -> None:
     with pytest.raises(ValueError, match="dimension"):
