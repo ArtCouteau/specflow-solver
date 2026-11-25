@@ -52,3 +52,19 @@ def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch
         [torch.sin(x) * torch.cos(y), torch.cos(x) * torch.sin(y).neg_()]
     )
     return velocity_physical.mul_(decay)
+
+
+def taylor_green_3d_physical(mesh: Mesh) -> torch.Tensor:
+    """Return the initial 3D Taylor–Green vortex, (3, N, N, N).
+
+    The velocity is (sin k₀x cos k₀y cos k₀z, −cos k₀x sin k₀y cos k₀z, 0), with
+    k₀ = 2π/L.
+    """
+    if mesh.dimension != 3:
+        raise ValueError(f"3D Taylor–Green needs a 3D mesh, got {mesh.dimension}D")
+    x, y, z = mesh.coordinates.mul(2 * math.pi / mesh.length)
+    cos_z = torch.cos(z)
+    velocity_physical = torch.zeros_like(mesh.coordinates)
+    velocity_physical[0] = torch.sin(x).mul_(torch.cos(y)).mul_(cos_z)
+    velocity_physical[1] = torch.cos(x).mul_(torch.sin(y)).mul_(cos_z).neg_()
+    return velocity_physical
