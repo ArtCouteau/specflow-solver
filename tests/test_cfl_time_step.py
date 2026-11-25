@@ -151,6 +151,28 @@ def test_a_resumed_run_reproduces_the_uninterrupted_run(tmp_path: Path) -> None:
     assert torch.equal(final["velocity"], whole[-1].state["velocity"])
 
 
+def test_a_reused_controller_restarts_from_its_initial_time_step(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    initial = taylor_green_with_mean_flow(mesh)
+    first = make_simulation(mesh, Outputs(tmp_path / "first", INTERVAL))
+    first.run(initial, 0, 0.5)
+    second = Simulation(
+        mesh,
+        first.equations,
+        first.integrator,
+        first.time_step,
+        Outputs(tmp_path / "second", INTERVAL),
+    )
+
+    second.run(initial, 0, 0.5)
+
+    assert [
+        (s.time, s.step, s.time_step) for s in snapshots(mesh, tmp_path / "second")
+    ] == [(s.time, s.step, s.time_step) for s in snapshots(mesh, tmp_path / "first")]
+
+
 class BlowingUp:
     def __init__(self, after: float) -> None:
         self.after = after

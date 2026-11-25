@@ -51,6 +51,7 @@ class Simulation:
         if not end >= start:
             raise ValueError(f"end {end} is before start {start}")
         self._check_state(state)
+        self.time_step.reset()
         with torch.inference_mode():
             owned = {key: tensor.clone() for key, tensor in state.items()}
             stepper = self.integrator.start(self.equations, owned)

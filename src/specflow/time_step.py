@@ -17,6 +17,10 @@ from specflow.terms import State
 class TimeStepController(Protocol):
     """The interface every time-step controller provides to the simulation."""
 
+    def reset(self) -> None:
+        """Forget earlier proposals, so that the next one is a run's first."""
+        ...
+
     def propose(self, mesh: Mesh, state: State) -> float:
         """Return the controller's Δt for the next step from the current state."""
         ...
@@ -37,6 +41,9 @@ class FixedTimeStep:
         if not (math.isfinite(self.value) and self.value > 0):
             raise ValueError(f"time step must be positive and finite, got {self.value}")
 
+    def reset(self) -> None:
+        """Do nothing, since a fixed Δt keeps no earlier proposal."""
+
     def propose(self, mesh: Mesh, state: State) -> float:
         """Return the prescribed Δt."""
         return self.value
@@ -50,9 +57,10 @@ class FixedTimeStep:
 class CFLTimeStep:
     """A Δt adapted to a target CFL number C = Δt·maxₓ Σᵢ|uᵢ|/Δx.
 
-    The first proposal is the initial Δt, so a run resumed from a snapshot with its
-    stored Δt proposes what the uninterrupted run proposed. Each later proposal is
-    Δt·min(max_growth, target/C), with C from the previous proposal and the state.
+    The first proposal of every run is the initial Δt, so a run resumed from a
+    snapshot with its stored Δt proposes what the uninterrupted run proposed. Each
+    later proposal is Δt·min(max_growth, target/C), with C from the previous
+    proposal and the state.
 
     Args:
         variable: The state key of the velocity, (d,) in spectral space.
@@ -73,6 +81,7 @@ class CFLTimeStep:
             )
         self.variable = variable
         self.target = target
+        self.initial = initial
         self.max_growth = max_growth
         self._time_step = initial
         self._cfl_number: float | None = None
@@ -81,6 +90,11 @@ class CFLTimeStep:
     def cfl_number(self) -> float | None:
         """The CFL number of the last proposal at its state, None before the first."""
         return self._cfl_number
+
+    def reset(self) -> None:
+        """Forget earlier proposals, so that the next one is the initial Δt."""
+        self._time_step = self.initial
+        self._cfl_number = None
 
     def propose(self, mesh: Mesh, state: State) -> float:
         """Return the controller's Δt for the next step from the current state."""
