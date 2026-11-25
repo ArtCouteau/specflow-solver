@@ -58,7 +58,7 @@ class FixedTimeStep(TimeStepController):
 class CFLTimeStep(TimeStepController):
     r"""A time step adapted to a target CFL number.
 
-    The CFL number is $C = \Delta t \max_x \sum_i |u_i| / \Delta x$. The first
+    The CFL number is $C = \Delta t \max \sum_i |u_i| / \Delta x$. The first
     proposal of every run is ``initial``, so a run resumed from a snapshot with its
     stored time step proposes what the uninterrupted run proposed. Each later
     proposal multiplies the previous one by ``target`` over its CFL number at the

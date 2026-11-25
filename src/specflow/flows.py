@@ -13,8 +13,8 @@ def diffusion_1d_physical(
 ) -> torch.Tensor:
     r"""Return the exact solution of 1D diffusion from a sum of sines.
 
-    The solution is $\sum_n a_n \sin(\kappa_n x) e^{-\alpha \kappa_n^2 t}$, with
-    $\kappa_n = 2 \pi n / L$ and ``amplitudes`` mapping each $n$ to $a_n$.
+    The solution is $\sum_n a_n \sin(\kappa x) e^{-\alpha \kappa^2 t}$, with
+    ``amplitudes`` mapping each $n$ to $a_n$.
     """
     if mesh.dimension != 1:
         raise ValueError(f"1D diffusion needs a 1D mesh, got {mesh.dimension}D")
