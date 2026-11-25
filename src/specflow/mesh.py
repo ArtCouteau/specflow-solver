@@ -13,14 +13,12 @@ COMPLEX_DTYPES = {torch.float32: torch.complex64, torch.float64: torch.complex12
 
 @dataclass(frozen=True, eq=False)
 class Mesh:
-    """N equispaced points per direction of the periodic domain [0, L)^d.
+    """$N$ equispaced points per direction of the periodic domain $[0, L)^d$.
 
-    The arrays are local to this rank, in the mesh's dtype and on its device:
-    ``wavenumbers`` and ``derivative_wavenumbers`` (d, *spectral_shape), the latter
-    with the Nyquist mode zeroed for first derivatives, ``wavenumbers_squared``,
-    ``inverse_wavenumbers_squared`` (of the derivative wavenumbers, 0 where they
-    vanish) and ``parseval_weights``
-    (*spectral_shape), and ``coordinates`` (d, *physical_shape).
+    The arrays are local to this rank. ``derivative_wavenumbers`` are the
+    wavenumbers with the Nyquist mode zeroed, for first derivatives, and
+    ``inverse_wavenumbers_squared`` is the inverse of their square, 0 where they
+    vanish.
     """
 
     points: int
@@ -60,12 +58,12 @@ class Mesh:
 
     @property
     def complex_dtype(self) -> torch.dtype:
-        """The dtype of spectral fields, the complex counterpart of the mesh dtype."""
+        """The dtype of spectral fields."""
         return COMPLEX_DTYPES[self.dtype]
 
     @property
     def spacing(self) -> float:
-        """The distance between neighbouring mesh points, L/N."""
+        """The distance between neighbouring mesh points."""
         return self.length / self.points
 
     @property
@@ -79,10 +77,7 @@ class Mesh:
         return tuple(s.stop - s.start for s in self.decomposition.physical_slices)
 
     def gradient(self, field_spectral: torch.Tensor) -> torch.Tensor:
-        """Return the gradient, the derivative axis becoming the last component axis.
-
-        A vector field u gives the tensor field ∂ⱼuᵢ, with j on the last component axis.
-        """
+        r"""Return the gradient $\partial_j u_i$, with $j$ the last component axis."""
         derivative_axis = -self.dimension - 1
         gradient_spectral = (
             field_spectral.unsqueeze(derivative_axis) * self.derivative_wavenumbers
@@ -100,21 +95,22 @@ class Mesh:
         return (field_spectral * self.wavenumbers_squared).neg_()
 
     def curl_2d(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
-        """Return the scalar vorticity ∂ₓu_y - ∂_yuₓ of a 2D vector field."""
+        r"""Return the vorticity $\partial_x u_y - \partial_y u_x$ of a 2D field."""
         if self.dimension != 2:
             raise ValueError(f"curl_2d needs a 2D mesh, got {self.dimension}D")
         return algebra.cross_2d(self.derivative_wavenumbers, velocity_spectral).mul_(1j)
 
     def curl_3d(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
-        """Return the vorticity vector ∇ x u of a 3D vector field."""
+        """Return the vorticity of a 3D vector field."""
         if self.dimension != 3:
             raise ValueError(f"curl_3d needs a 3D mesh, got {self.dimension}D")
         return algebra.cross_3d(self.derivative_wavenumbers, velocity_spectral).mul_(1j)
 
     def project(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
-        """Return the divergence-free part u - k(k·u)/k² of a vector field.
+        r"""Return the divergence-free part $u_i - \kappa_i \kappa_j u_j / \kappa^2$.
 
-        Built on the derivative wavenumbers, so that its result has zero divergence.
+        Built on the derivative wavenumbers, so that ``divergence`` of the result is
+        zero.
         """
         coefficient_spectral = algebra.inner(
             self.derivative_wavenumbers, velocity_spectral, self.dimension

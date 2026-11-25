@@ -1,12 +1,12 @@
-"""Time-step controllers: the Δt of each step of a simulation.
+"""Time-step controllers, which propose the time step of each step of a simulation.
 
 The simulation shortens a step to land exactly on a stop time; a shortened step
-never reaches the controller, so it never becomes the controller's Δt.
+never reaches the controller, so it never becomes the controller's time step.
 """
 
 import math
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, override
 
 import torch
 
@@ -22,18 +22,18 @@ class TimeStepController(Protocol):
         ...
 
     def propose(self, mesh: Mesh, state: State) -> float:
-        """Return the controller's Δt for the next step from the current state."""
+        """Return the time step of the next step, from the current state."""
         ...
 
     @property
     def cfl_number(self) -> float | None:
-        """The CFL number of the last proposal at its state, or None."""
+        """The CFL number of the last proposal at its state, or None without one."""
         ...
 
 
 @dataclass(frozen=True)
-class FixedTimeStep:
-    """A prescribed, constant Δt."""
+class FixedTimeStep(TimeStepController):
+    """A prescribed, constant time step."""
 
     value: float
 
@@ -41,32 +41,34 @@ class FixedTimeStep:
         if not (math.isfinite(self.value) and self.value > 0):
             raise ValueError(f"time step must be positive and finite, got {self.value}")
 
+    @override
     def reset(self) -> None:
-        """Do nothing, since a fixed Δt keeps no earlier proposal."""
+        pass
 
+    @override
     def propose(self, mesh: Mesh, state: State) -> float:
-        """Return the prescribed Δt."""
         return self.value
 
     @property
+    @override
     def cfl_number(self) -> None:
-        """None, since a fixed Δt reads no velocity."""
         return None
 
 
-class CFLTimeStep:
-    """A Δt adapted to a target CFL number C = Δt·maxₓ Σᵢ|uᵢ|/Δx.
+class CFLTimeStep(TimeStepController):
+    r"""A time step adapted to a target CFL number.
 
-    The first proposal of every run is the initial Δt, so a run resumed from a
-    snapshot with its stored Δt proposes what the uninterrupted run proposed. Each
-    later proposal is Δt·min(max_growth, target/C), with C from the previous
-    proposal and the state.
+    The CFL number is $C = \Delta t \max_x \sum_i |u_i| / \Delta x$. The first
+    proposal of every run is ``initial``, so a run resumed from a snapshot with its
+    stored time step proposes what the uninterrupted run proposed. Each later
+    proposal multiplies the previous one by ``target`` over its CFL number at the
+    current state, capped at ``max_growth``.
 
     Args:
-        variable: The state key of the velocity, (d,) in spectral space.
+        variable: The state key of the velocity.
         target: The CFL number aimed at.
-        initial: The first Δt.
-        max_growth: The largest factor between two successive proposals.
+        initial: The first time step of every run.
+        max_growth: The largest ratio between two successive time steps.
     """
 
     def __init__(
@@ -87,17 +89,17 @@ class CFLTimeStep:
         self._cfl_number: float | None = None
 
     @property
+    @override
     def cfl_number(self) -> float | None:
-        """The CFL number of the last proposal at its state, None before the first."""
         return self._cfl_number
 
+    @override
     def reset(self) -> None:
-        """Forget earlier proposals, so that the next one is the initial Δt."""
         self._time_step = self.initial
         self._cfl_number = None
 
+    @override
     def propose(self, mesh: Mesh, state: State) -> float:
-        """Return the controller's Δt for the next step from the current state."""
         speed = self._speed(mesh, state[self.variable])
         if self._cfl_number is not None:
             cfl_number = self._time_step * speed

@@ -12,10 +12,10 @@ type Projection = Callable[[torch.Tensor], torch.Tensor]
 class Equation:
     """The tendency of one variable: its linear operator plus its nonlinear tendency.
 
-    ``linear_operator`` is the sum of the linear terms' multipliers,
-    (*spectral_shape), or a zero scalar without linear terms. Only the nonlinear
-    tendency and the contributions are projected; the linear operator commutes with
-    the projection. ``reads`` merges the terms' ``reads``.
+    ``linear_operator`` is the sum of the linear terms' multipliers, zero without
+    linear terms. Only the nonlinear tendency and the contributions are projected;
+    the linear operator commutes with the projection. ``reads`` merges the terms'
+    ``reads``.
     """
 
     def __init__(
@@ -49,7 +49,7 @@ class Equation:
     def nonlinear_tendency(
         self, state: State, time: float, out_spectral: torch.Tensor
     ) -> None:
-        """Write the projected sum of the nonlinear contributions into a tensor."""
+        """Write the projected sum of nonlinear contributions to ``out_spectral``."""
         out_spectral.zero_()
         if not self._nonlinear_terms:
             return
@@ -75,7 +75,7 @@ class Equation:
 def merge_reads(
     reads: Iterable[Mapping[str, tuple[int, ...]]],
 ) -> dict[str, tuple[int, ...]]:
-    """Return the union of several ``reads``, raising if two disagree on a shape."""
+    """Return the union of several ``reads``, raising if two disagree on a key."""
     merged: dict[str, tuple[int, ...]] = {}
     for one in reads:
         for key, components in one.items():

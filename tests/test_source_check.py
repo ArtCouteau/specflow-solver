@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "check_comments.py"
+SCRIPT = ROOT / "scripts" / "check_source.py"
 
 
 def run_check(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -45,6 +45,20 @@ def test_a_missing_path_is_an_error(tmp_path: Path) -> None:
     assert run_check(str(tmp_path / "missing")).returncode == 2
 
 
-def test_repository_sources_are_comment_free() -> None:
+def test_a_non_ascii_character_fails_with_its_location(tmp_path: Path) -> None:
+    source = tmp_path / "module.py"
+    source.write_text('x = 1\ny = "\\u03bd"\n"""\u03bd is the viscosity."""\n', "utf-8")
+    result = run_check(str(tmp_path))
+    assert result.returncode == 1
+    assert f"{source}:3:4: non-ASCII character" in result.stdout
+    assert f"{source}:2:" not in result.stdout
+
+
+def test_a_non_ascii_character_inside_a_string_fails(tmp_path: Path) -> None:
+    (tmp_path / "module.py").write_text('message = "time \u0394t"\n', "utf-8")
+    assert run_check(str(tmp_path)).returncode == 1
+
+
+def test_repository_sources_are_comment_free_and_ascii() -> None:
     result = run_check()
     assert result.returncode == 0, result.stdout

@@ -34,8 +34,8 @@ jobs:
       - name: Type check
         run: uv run pyright
 
-      - name: Comment ban
-        run: uv run python scripts/check_comments.py
+      - name: Comment and ASCII check
+        run: uv run python scripts/check_source.py
 
       - name: Test
         run: uv run pytest -m "not gpu"

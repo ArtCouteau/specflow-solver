@@ -399,7 +399,11 @@ def test_each_debug_line_holds_the_time_step_taken(
         simulation.run({"velocity": exact_spectral(mesh, 0)}, 0, 0.5)
 
     debug = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
-    assert [message.split("Δt ")[1] for message in debug] == 2 * ["0.1", "0.1", "0.05"]
+    assert [message.split("time_step ")[1] for message in debug] == 2 * [
+        "0.1",
+        "0.1",
+        "0.05",
+    ]
 
 
 def test_the_library_never_configures_logging(tmp_path: Path) -> None:

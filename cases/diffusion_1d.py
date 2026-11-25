@@ -55,7 +55,7 @@ def main() -> None:
         mesh, [equation], IFRK4(), FixedTimeStep(TIME_STEP), outputs
     )
     final = simulation.run({"scalar": exact_spectral(0.0)}, 0.0, END)
-    logger.info("relative error at t = %g: %.3e", END, error(final, END).item())
+    logger.info(f"relative error at t = {END:g}: {error(final, END).item():.3e}")
 
 
 if __name__ == "__main__":

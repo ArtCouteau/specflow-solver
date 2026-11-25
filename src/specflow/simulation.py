@@ -20,11 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation:
-    """Equations advanced by an integrator, with Δt from a time-step controller.
+    """Equations advanced by an integrator, with time steps from a controller.
 
     With outputs, the output times are the start, every snapshot interval after it,
     and the end; steps are shortened to land on them exactly. The controller proposes
-    Δt once per state reached, and a snapshot stores the Δt proposed from its state.
+    a time step once per state reached, and a snapshot stores the time step proposed
+    from its state.
     """
 
     def __init__(
@@ -155,7 +156,7 @@ class Simulation:
                     stepper.step(time, taken)
                     time += taken
                 step += 1
-                logger.debug("step %d, time %.6g, Δt %.6g", step, time, taken)
+                logger.debug(f"step {step}, time {time:.6g}, time_step {taken:.6g}")
                 if writer is not None:
                     writer.sample(state, time, step)
                 proposed = self._propose(state, time, step)
@@ -164,13 +165,10 @@ class Simulation:
                 wall = clock.perf_counter()
                 cfl_number = self.time_step.cfl_number
                 cfl = "" if cfl_number is None else f"CFL {cfl_number:.3g}, "
+                per_step = (wall - wall_start) / max(step - step_start, 1)
                 logger.info(
-                    "step %d, time %.6g, Δt %.6g, %s%.3g s per step",
-                    step,
-                    time,
-                    proposed,
-                    cfl,
-                    (wall - wall_start) / max(step - step_start, 1),
+                    f"step {step}, time {time:.6g}, time_step {proposed:.6g}, "
+                    f"{cfl}{per_step:.3g} s per step"
                 )
                 wall_start, step_start = wall, step
 

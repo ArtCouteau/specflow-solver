@@ -1,4 +1,4 @@
-"""The decaying 2D Taylor–Green vortex, checked against its exact solution.
+"""The decaying 2D Taylor-Green vortex, checked against its exact solution.
 
 Usage: ``python cases/taylor_green_2d.py [--output DIRECTORY]``.
 """
@@ -66,7 +66,7 @@ def main() -> None:
     time_step = CFLTimeStep("velocity", CFL_TARGET, INITIAL_TIME_STEP)
     simulation = Simulation(mesh, [equation], IFRK4(), time_step, outputs)
     final = simulation.run({"velocity": exact_spectral(0.0)}, 0.0, END)
-    logger.info("relative error at t = %g: %.3e", END, error(final, END).item())
+    logger.info(f"relative error at t = {END:g}: {error(final, END).item():.3e}")
 
 
 if __name__ == "__main__":

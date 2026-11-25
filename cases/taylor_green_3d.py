@@ -1,7 +1,7 @@
-"""The 3D Taylor–Green vortex at Re 1600, compared with the Incompact3d reference.
+"""The 3D Taylor-Green vortex at Re 1600, compared with the Incompact3d reference.
 
-The reference is the 512³ DNS of Dairay, Lamballais, Laizet and Vassilicos,
-J. Comput. Phys. 337 (2017) 252–274, in ``data/TGV_Re1600.dat``. The run writes
+The reference is the $512^3$ DNS of Dairay, Lamballais, Laizet and Vassilicos,
+J. Comput. Phys. 337 (2017) 252-274, in ``data/TGV_Re1600.dat``. The run writes
 the kinetic energy, dissipation and enstrophy at every step to the time series of
 its output directory, ``taylor_green_3d_<N>`` by default, and logs its peak
 dissipation against the reference's at the end.
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def reference_peak() -> tuple[float, float]:
-    """Return the time and value of the reference's peak dissipation ε."""
+    """Return the time and value of the reference's peak dissipation."""
     rows = [
         [float(value) for value in line.split()]
         for line in REFERENCE.read_text(encoding="utf-8").splitlines()
@@ -115,11 +115,8 @@ def main() -> None:
     peak_time, peak_dissipation = series_peak(output, "dissipation")
     reference_time, reference_dissipation = reference_peak()
     logger.info(
-        "peak dissipation %.5g at t = %.4g; reference %.5g at t = %.4g",
-        peak_dissipation,
-        peak_time,
-        reference_dissipation,
-        reference_time,
+        f"peak dissipation {peak_dissipation:.5g} at t = {peak_time:.4g}; "
+        f"reference {reference_dissipation:.5g} at t = {reference_time:.4g}"
     )
 
 

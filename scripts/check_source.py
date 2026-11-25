@@ -1,10 +1,10 @@
-"""Fail on any comment token in Python sources.
+"""Fail on any comment token or non-ASCII character in Python sources.
 
-Usage: ``python scripts/check_comments.py [PATH ...]``. Each path is a file or a
+Usage: ``python scripts/check_source.py [PATH ...]``. Each path is a file or a
 directory searched recursively for ``*.py`` files. Without paths, the ``src``,
 ``tests``, ``cases`` and ``scripts`` directories of the working directory that
-exist are checked. Exits with 1 when a comment is found and 2 when a path is
-missing or a file cannot be tokenized.
+exist are checked. Exits with 1 when a comment or a non-ASCII character is found
+and 2 when a path is missing or a file cannot be tokenized.
 """
 
 import sys
@@ -32,8 +32,18 @@ def comments(path: Path) -> Iterator[tuple[int, int, str]]:
                 yield token.start[0], token.start[1], token.string
 
 
+def non_ascii(path: Path) -> Iterator[tuple[int, int, str]]:
+    """Yield the line, column and character of the first non-ASCII one of each line."""
+    with tokenize.open(path) as source:
+        for number, line in enumerate(source, start=1):
+            for column, character in enumerate(line):
+                if not character.isascii():
+                    yield number, column, character
+                    break
+
+
 def main(arguments: Sequence[str]) -> int:
-    """Report every comment under the given paths and return the exit code."""
+    """Report every comment and non-ASCII line under the paths; return the exit code."""
     if arguments:
         paths = [Path(argument) for argument in arguments]
     else:
@@ -48,6 +58,9 @@ def main(arguments: Sequence[str]) -> int:
         try:
             for line, column, text in comments(path):
                 print(f"{path}:{line}:{column + 1}: comment {text!r}")
+                found = True
+            for line, column, character in non_ascii(path):
+                print(f"{path}:{line}:{column + 1}: non-ASCII character {character!r}")
                 found = True
         except (SyntaxError, tokenize.TokenError) as error:
             print(f"{path}: cannot tokenize: {error}")

@@ -9,10 +9,10 @@ from specflow.mesh import Mesh
 
 
 class TwoThirdsDealiasing:
-    """The 2/3 rule: a spherical truncation of the product to |k| < N/3, strict.
+    """The 2/3 rule: a spherical truncation of the product to $|n| < N/3$.
 
     Only the product is truncated, never its factors, so a state band-limited to
-    |k| < N/3 keeps its products free of aliasing.
+    $|n| < N/3$ keeps its products free of aliasing.
     """
 
     def __init__(self, mesh: Mesh) -> None:
@@ -24,12 +24,9 @@ class TwoThirdsDealiasing:
     def product(
         self, operation: Callable[..., torch.Tensor], *factors_spectral: torch.Tensor
     ) -> torch.Tensor:
-        """Return the dealiased spectral product of fields formed at the mesh points.
+        """Return the dealiased product of spectral fields, formed at the mesh points.
 
-        Args:
-            operation: The pointwise product, called with the factors in physical
-                space and returning a physical field.
-            *factors_spectral: The factors, each transformed to physical space once.
+        ``operation`` takes the factors in physical space and returns their product.
         """
         factors_physical = [
             self._decomposition.to_physical(factor) for factor in factors_spectral

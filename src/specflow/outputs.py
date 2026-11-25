@@ -2,7 +2,7 @@
 
 Snapshots are named by a zero-padded index, ``snapshot_000000.h5``, and hold the
 spectral state under ``state/<key>`` with the metadata as attributes: ``time``,
-``step``, ``time_step`` (the controller's Δt proposed from the snapshot's state),
+``step``, ``time_step`` (the time step proposed from the snapshot's state),
 ``points``, ``length``, ``dimension``, ``dtype`` and ``commit`` (empty unless the
 package is the ``src/specflow`` of a git checkout). The time series,
 ``time_series.h5``, created with the first snapshot, holds one resizable dataset
@@ -35,7 +35,7 @@ RESERVED_NAMES = ("time", "step")
 
 @dataclass(frozen=True)
 class Snapshot:
-    """A state loaded from a snapshot, with its time, step and controller Δt."""
+    """A state loaded from a snapshot, with its time, step and proposed time step."""
 
     state: dict[str, torch.Tensor]
     time: float
@@ -50,8 +50,8 @@ class Outputs:
         path: The output directory, created if missing.
         snapshot_interval: The time between output times.
         diagnostics: Functions of (state, time), by name, written to the time series.
-        diagnostics_interval: The number of steps n between diagnostic evaluations;
-            they are evaluated on the steps that are multiples of n.
+        diagnostics_interval: The number of steps between diagnostic evaluations,
+            which happen on the steps that are multiples of it.
         resume: Continue from the latest snapshot of the directory, instead of
             refusing a directory that holds snapshots.
     """
@@ -117,7 +117,7 @@ class OutputWriter:
             self._check_fresh()
 
     def sample(self, state: State, time: float, step: int) -> None:
-        """Buffer copies of the diagnostics on device if ``step`` is a multiple of n."""
+        """Buffer copies of the diagnostics on device on an evaluation step."""
         if step % self._outputs.diagnostics_interval:
             return
         self._times.append(time)
@@ -229,8 +229,8 @@ def load_snapshot(path: Path, mesh: Mesh) -> Snapshot:
     """Return a snapshot, its state scattered onto the mesh's device.
 
     Raises:
-        ValueError: The snapshot was written on a mesh of other N, L, dimension or
-            dtype.
+        ValueError: The snapshot was written on a mesh of other points, length,
+            dimension or dtype.
     """
     with h5py.File(path, "r") as snapshot:
         attrs = snapshot.attrs

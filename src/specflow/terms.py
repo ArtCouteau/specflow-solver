@@ -8,7 +8,7 @@ A nonlinear term computes its contribution from the state and the time. Both dec
 """
 
 from collections.abc import Mapping
-from typing import Protocol, runtime_checkable
+from typing import Protocol, override, runtime_checkable
 
 import torch
 
@@ -34,7 +34,7 @@ class LinearTerm(Protocol):
 
     @property
     def multiplier(self) -> torch.Tensor:
-        """The multiplier, (*spectral_shape), broadcast over the components."""
+        """The multiplier of each wavenumber, broadcast over the components."""
         ...
 
 
@@ -60,8 +60,8 @@ class NonlinearTerm(Protocol):
 type Term = LinearTerm | NonlinearTerm
 
 
-class Diffusion:
-    """The linear term κ∇²q of a variable q, with a constant diffusivity κ."""
+class Diffusion(LinearTerm):
+    r"""The linear term $\alpha \nabla^2 q$ of a variable, with a constant $\alpha$."""
 
     def __init__(
         self,
@@ -75,26 +75,27 @@ class Diffusion:
         self._multiplier = mesh.wavenumbers_squared * -diffusivity
 
     @property
+    @override
     def name(self) -> str:
-        """The key of the term's contribution, ``"diffusion"``."""
         return "diffusion"
 
     @property
+    @override
     def reads(self) -> Mapping[str, tuple[int, ...]]:
-        """The variable and its component shape."""
         return {self._variable: self._components}
 
     @property
+    @override
     def multiplier(self) -> torch.Tensor:
-        """The multiplier −κk², (*spectral_shape)."""
         return self._multiplier
 
 
-class Advection:
-    """The nonlinear term of transport by the velocity, in divergence form.
+class Advection(NonlinearTerm):
+    r"""The nonlinear term of transport by the velocity, in divergence form.
 
-    The velocity u advects itself, −∇·(u⊗u), and any other variable is a scalar θ,
-    −∇·(uθ). The product is dealiased; the term is not projected.
+    The velocity advects itself, $-\partial_j (u_i u_j)$, and any other variable is a
+    scalar, $-\partial_j (u_j \theta)$. The product is dealiased; the term is not
+    projected.
     """
 
     def __init__(
@@ -110,13 +111,13 @@ class Advection:
         self._velocity = velocity
 
     @property
+    @override
     def name(self) -> str:
-        """The key of the term's contribution, ``"advection"``."""
         return "advection"
 
     @property
+    @override
     def reads(self) -> Mapping[str, tuple[int, ...]]:
-        """The velocity, (d,), and the advected variable, () unless the velocity."""
         return {self._velocity: (self._mesh.dimension,), self._variable: self._shape}
 
     @property
@@ -125,8 +126,8 @@ class Advection:
             return (self._mesh.dimension,)
         return ()
 
+    @override
     def contribution(self, state: State, time: float) -> torch.Tensor:
-        """Return −∇·(u⊗u) or −∇·(uθ) in spectral space."""
         velocity_spectral = state[self._velocity]
         if self._variable == self._velocity:
             flux_spectral = self._dealiasing.product(

@@ -11,13 +11,10 @@ from specflow.mesh import Mesh
 def diffusion_1d_physical(
     mesh: Mesh, amplitudes: Mapping[int, float], diffusivity: float, time: float
 ) -> torch.Tensor:
-    """Return the exact solution Σₙ aₙ sin(kₙx) exp(-κkₙ²t) of 1D diffusion, (N,).
+    r"""Return the exact solution of 1D diffusion from a sum of sines.
 
-    Args:
-        mesh: A 1D mesh.
-        amplitudes: The amplitude aₙ of each integer wavenumber n, with kₙ = 2πn/L.
-        diffusivity: κ.
-        time: t.
+    The solution is $\sum_n a_n \sin(\kappa_n x) e^{-\alpha \kappa_n^2 t}$, with
+    $\kappa_n = 2 \pi n / L$ and ``amplitudes`` mapping each $n$ to $a_n$.
     """
     if mesh.dimension != 1:
         raise ValueError(f"1D diffusion needs a 1D mesh, got {mesh.dimension}D")
@@ -33,15 +30,11 @@ def diffusion_1d_physical(
 
 
 def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch.Tensor:
-    """Return the decaying 2D Taylor-Green vortex, (2, N, N).
+    r"""Return the decaying 2D Taylor-Green vortex.
 
-    The velocity is (sin k₀x cos k₀y, -cos k₀x sin k₀y) exp(-2vk₀²t), with k₀ = 2π/L;
-    at t = 0 it is the initial condition.
-
-    Args:
-        mesh: A 2D mesh.
-        viscosity: v.
-        time: t.
+    The velocity is
+    $(\sin \kappa_0 x \cos \kappa_0 y, -\cos \kappa_0 x \sin \kappa_0 y)
+    e^{-2 \nu \kappa_0^2 t}$.
     """
     if mesh.dimension != 2:
         raise ValueError(f"2D Taylor-Green needs a 2D mesh, got {mesh.dimension}D")
@@ -55,10 +48,11 @@ def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch
 
 
 def taylor_green_3d_physical(mesh: Mesh) -> torch.Tensor:
-    """Return the initial 3D Taylor-Green vortex, (3, N, N, N).
+    r"""Return the initial 3D Taylor-Green vortex.
 
-    The velocity is (sin k₀x cos k₀y cos k₀z, -cos k₀x sin k₀y cos k₀z, 0), with
-    k₀ = 2π/L.
+    The velocity is
+    $(\sin \kappa_0 x \cos \kappa_0 y \cos \kappa_0 z,
+    -\cos \kappa_0 x \sin \kappa_0 y \cos \kappa_0 z, 0)$.
     """
     if mesh.dimension != 3:
         raise ValueError(f"3D Taylor-Green needs a 3D mesh, got {mesh.dimension}D")

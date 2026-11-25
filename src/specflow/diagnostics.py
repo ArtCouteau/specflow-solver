@@ -1,8 +1,6 @@
 """Global diagnostics of spectral fields, as Parseval sums with no FFT.
 
-Each diagnostic reduces the component and spatial axes through the mesh's
-decomposition and keeps the leading axes, in the mesh's dtype and on its device.
-⟨·⟩ is the mean over the periodic domain.
+Each diagnostic reduces the component and spatial axes and keeps the leading axes.
 """
 
 import torch
@@ -26,17 +24,17 @@ def _mean_square(
 
 
 def kinetic_energy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
-    """Return the kinetic energy ½⟨|u|²⟩."""
+    r"""Return the kinetic energy $\tfrac12 \langle u_i u_i \rangle$."""
     return _mean_square(mesh, velocity_spectral, 1).mul_(0.5)
 
 
 def dissipation(
     mesh: Mesh, velocity_spectral: torch.Tensor, viscosity: float
 ) -> torch.Tensor:
-    """Return the dissipation v⟨∂ⱼuᵢ∂ⱼuᵢ⟩, as -v⟨u·∇²u⟩.
+    r"""Return the dissipation $\nu \langle \partial_j u_i \partial_j u_i \rangle$.
 
-    Built on the exact k² of the Laplacian, so that it is minus the energy
-    contribution of diffusion.
+    It is exactly minus the energy contribution of diffusion,
+    $\nu \langle u_i \nabla^2 u_i \rangle$, the Nyquist modes included.
     """
     return _mean_square(mesh, velocity_spectral, 1, mesh.wavenumbers_squared).mul_(
         viscosity
@@ -44,7 +42,7 @@ def dissipation(
 
 
 def enstrophy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
-    """Return the enstrophy ½⟨|ω|²⟩ of a 2D or 3D velocity."""
+    r"""Return the enstrophy $\tfrac12 \langle \omega^2 \rangle$, in 2D or 3D."""
     if mesh.dimension == 2:
         return _mean_square(mesh, mesh.curl_2d(velocity_spectral)).mul_(0.5)
     if mesh.dimension == 3:
@@ -53,7 +51,7 @@ def enstrophy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
 
 
 def divergence_rms(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
-    """Return the RMS divergence ⟨(∇·u)²⟩^½."""
+    """Return the root mean square of the divergence."""
     return _mean_square(mesh, mesh.divergence(velocity_spectral)).sqrt_()
 
 
@@ -63,14 +61,10 @@ def relative_error(
     reference_spectral: torch.Tensor,
     component_axes: int = 0,
 ) -> torch.Tensor:
-    """Return the relative L2 error ‖f - r‖/‖r‖ of a field against a reference.
+    r"""Return the relative L2 error $\|f - r\| / \|r\|$ of a field against a reference.
 
-    Args:
-        mesh: The mesh of both fields.
-        field_spectral: f.
-        reference_spectral: r, with the same layout as f.
-        component_axes: The number of component axes, 0 for a scalar and 1 for a
-            vector; they are summed with the spatial axes.
+    ``component_axes`` is the number of component axes, 0 for a scalar and 1 for a
+    vector.
     """
     difference = _mean_square(mesh, field_spectral - reference_spectral, component_axes)
     reference = _mean_square(mesh, reference_spectral, component_axes)

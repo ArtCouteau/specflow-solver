@@ -5,7 +5,7 @@ three stage buffers per variable, allocated once, and advances the state in plac
 """
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Protocol, override
 
 import torch
 
@@ -30,27 +30,27 @@ class Integrator(Protocol):
         ...
 
 
-class RK4:
+class RK4(Integrator):
     """The classical RK4, applying the linear operator explicitly."""
 
+    @override
     def start(
         self, equations: Sequence[Equation], state: dict[str, torch.Tensor]
     ) -> Stepper:
-        """Return a stepper that advances ``state``'s tensors in place."""
         return _RungeKutta4Stepper(equations, state, integrating_factor=False)
 
 
-class IFRK4:
+class IFRK4(Integrator):
     """The Lawson integrating-factor RK4, applying the linear operator exactly."""
 
+    @override
     def start(
         self, equations: Sequence[Equation], state: dict[str, torch.Tensor]
     ) -> Stepper:
-        """Return a stepper that advances ``state``'s tensors in place."""
         return _RungeKutta4Stepper(equations, state, integrating_factor=True)
 
 
-class _RungeKutta4Stepper:
+class _RungeKutta4Stepper(Stepper):
     def __init__(
         self,
         equations: Sequence[Equation],
@@ -73,6 +73,7 @@ class _RungeKutta4Stepper:
         self._full_factors = ones
         self._factor_time_step: float | None = None
 
+    @override
     def step(self, time: float, time_step: float) -> None:
         self._update_factors(time_step)
         state, stage, slope, total = self._state, self._stage, self._slope, self._total
