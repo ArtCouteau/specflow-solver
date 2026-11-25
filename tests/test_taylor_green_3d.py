@@ -1,4 +1,6 @@
 import math
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -14,10 +16,24 @@ from specflow.integrators import IFRK4
 from specflow.mesh import Mesh
 from specflow.outputs import TIME_SERIES_NAME, Outputs
 from specflow.simulation import Simulation
+from specflow.statistics import window_statistic
 from specflow.terms import Advection, Diffusion, State
 from specflow.time_step import CFLTimeStep
 
-REFERENCE = Path(__file__).resolve().parents[1] / "data" / "TGV_Re1600.dat"
+ROOT = Path(__file__).resolve().parents[1]
+REFERENCE = ROOT / "data" / "TGV_Re1600.dat"
+CASE = ROOT / "cases" / "taylor_green_3d.py"
+CASE_POINTS = 16
+CASE_SNAPSHOTS = 5
+CASE_END = 20.0
+CASE_BLOCK_LENGTH = 2
+SAMPLED = (
+    "advection_budget_spectrum",
+    "diffusion_budget_spectrum",
+    "energy_spectrum",
+    "longitudinal_derivative_counts",
+    "longitudinal_derivative_moments",
+)
 VISCOSITY = 1 / 1600
 LENGTH = 2 * math.pi
 CFL_TARGET = 0.5
@@ -30,6 +46,17 @@ PEAK_TIME = 8.98
 PEAK_TIME_TOLERANCE = 0.2
 RESOLVED_END = 7.0
 RESOLVED_TOLERANCE = 0.01
+
+
+@pytest.fixture(scope="module")
+def case_output(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("taylor_green_3d") / "output"
+    subprocess.run(
+        [sys.executable, str(CASE), str(CASE_POINTS), "--output", str(path)],
+        check=True,
+        capture_output=True,
+    )
+    return path
 
 
 @pytest.fixture
@@ -249,3 +276,97 @@ def test_dissipation_at_256_matches_the_reference(
 
     assert_matches_reference_curve(series["time"], series["dissipation"])
     assert_matches_reference_peak(series["time"], series["dissipation"])
+
+
+def read_snapshots(path: Path) -> list[dict[str, torch.Tensor]]:
+    snapshots: list[dict[str, torch.Tensor]] = []
+    for snapshot_path in sorted(path.glob("snapshot_*.h5")):
+        with h5py.File(snapshot_path, "r") as snapshot:
+            group = snapshot["diagnostics"]
+            assert isinstance(group, h5py.Group)
+            names = [f"diagnostics/{key}" for key in group]
+            names += ["shells/wavenumbers", "shells/counts"]
+            entries = {name: read_dataset(snapshot, name) for name in names}
+            entries["step"] = torch.as_tensor(snapshot.attrs["step"])
+        snapshots.append(entries)
+    return snapshots
+
+
+def read_series_rows(path: Path, steps: torch.Tensor) -> dict[str, torch.Tensor]:
+    with h5py.File(path / TIME_SERIES_NAME, "r") as series:
+        columns = {name: read_dataset(series, name) for name in ("step", *DIAGNOSTICS)}
+    rows = torch.searchsorted(columns["step"], steps)
+    assert torch.equal(columns["step"][rows], steps)
+    return {name: column[rows] for name, column in columns.items()}
+
+
+def test_the_case_writes_its_sampled_diagnostics_into_each_snapshot(
+    case_output: Path, tmp_path: Path
+) -> None:
+    snapshots = read_snapshots(case_output)
+    statistic = tmp_path / "time_average.h5"
+
+    window_statistic(case_output, statistic, 0.0, CASE_END, CASE_BLOCK_LENGTH)
+
+    assert len(snapshots) == CASE_SNAPSHOTS
+    for snapshot in snapshots:
+        stored = sorted(key for key in snapshot if key.startswith("diagnostics/"))
+        assert stored == [f"diagnostics/{name}" for name in SAMPLED]
+        shells = snapshot["shells/wavenumbers"].shape
+        for name in SAMPLED:
+            if name.endswith("spectrum"):
+                assert snapshot[f"diagnostics/{name}"].shape == shells
+        assert snapshot["diagnostics/longitudinal_derivative_moments"].shape == (4, 3)
+        assert snapshot["shells/counts"].sum().item() == CASE_POINTS**3
+    with h5py.File(statistic, "r") as average:
+        assert average.attrs["snapshot_samples"] == CASE_SNAPSHOTS
+        for name in SAMPLED:
+            shape = snapshots[0][f"diagnostics/{name}"].shape
+            for kind in ("mean", "standard_error"):
+                assert read_dataset(average, f"{kind}/{name}").shape == shape
+        for name in ("wavenumbers", "counts"):
+            assert torch.equal(
+                read_dataset(average, f"shells/{name}"),
+                snapshots[0][f"shells/{name}"],
+            )
+
+
+def test_the_sampled_spectra_close_on_the_time_series(case_output: Path) -> None:
+    snapshots = read_snapshots(case_output)
+    steps = torch.stack([snapshot["step"] for snapshot in snapshots])
+    rows = read_series_rows(case_output, steps)
+
+    width = 2 * math.pi / LENGTH
+    for index, snapshot in enumerate(snapshots):
+        energy = snapshot["diagnostics/energy_spectrum"].sum().item() * width
+        diffusion = (
+            snapshot["diagnostics/diffusion_budget_spectrum"].sum().item() * width
+        )
+        advection = (
+            snapshot["diagnostics/advection_budget_spectrum"].sum().item() * width
+        )
+        assert energy == pytest.approx(rows["energy"][index].item(), rel=1e-12)
+        assert diffusion == pytest.approx(-rows["dissipation"][index].item(), rel=1e-12)
+        assert advection == pytest.approx(0.0, abs=1e-14)
+
+
+def test_the_sampled_counts_hold_every_point_of_each_component(
+    case_output: Path,
+) -> None:
+    for snapshot in read_snapshots(case_output):
+        counts = snapshot["diagnostics/longitudinal_derivative_counts"]
+        assert counts.dtype == torch.int64
+        assert counts.sum(-1).tolist() == [CASE_POINTS**3] * 3
+
+
+def test_the_initial_moments_of_the_longitudinal_derivatives(
+    case_output: Path,
+) -> None:
+    moments = read_snapshots(case_output)[0][
+        "diagnostics/longitudinal_derivative_moments"
+    ]
+
+    assert moments[0].tolist() == pytest.approx([0.0] * 3, abs=1e-15)
+    assert moments[1].tolist() == pytest.approx([0.125, 0.125, 0.0], abs=1e-15)
+    assert moments[2].tolist() == pytest.approx([0.0] * 3, abs=1e-15)
+    assert moments[3].tolist() == pytest.approx([(3 / 8) ** 3] * 2 + [0.0], abs=1e-15)

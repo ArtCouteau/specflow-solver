@@ -4,7 +4,10 @@ Snapshots are named by a zero-padded index, ``snapshot_000000.h5``, and hold the
 spectral state under ``state/<key>`` with the metadata as attributes: ``time``,
 ``step``, ``time_step`` (the time step proposed from the snapshot's state),
 ``points``, ``length``, ``dimension``, ``dtype`` and ``commit`` (empty unless the
-package is the ``src/specflow`` of a git checkout). The time series,
+package is the ``src/specflow`` of a git checkout). A snapshot also holds each
+sampled diagnostic, evaluated at its sample time, under ``diagnostics/<name>``,
+and, when there are any, the shell centres and mode counts under
+``shells/wavenumbers`` and ``shells/counts``. The time series,
 ``time_series.h5``, created with the first snapshot, holds one resizable dataset
 each for ``time``, ``step`` and every diagnostic, with one row per evaluation up
 to the latest snapshot's step: each output time writes its snapshot before its
@@ -23,6 +26,7 @@ import h5py
 import torch
 
 from specflow.mesh import Mesh
+from specflow.spectra import Shells
 from specflow.terms import State
 
 type Diagnostic = Callable[[State, float], torch.Tensor]
@@ -54,6 +58,10 @@ class Outputs:
             which happen on the steps that are multiples of it.
         resume: Continue from the latest snapshot of the directory, instead of
             refusing a directory that holds snapshots.
+        sampled: Functions of (state, time), by name, evaluated at each sample
+            time, which is each output time, and written into its snapshot. Their
+            names are disjoint from those of ``diagnostics``, and no name of
+            either holds a ``/``.
     """
 
     def __init__(
@@ -63,6 +71,7 @@ class Outputs:
         diagnostics: Mapping[str, Diagnostic] | None = None,
         diagnostics_interval: int = 1,
         resume: bool = False,
+        sampled: Mapping[str, Diagnostic] | None = None,
     ) -> None:
         if not (math.isfinite(snapshot_interval) and snapshot_interval > 0):
             raise ValueError(
@@ -78,9 +87,20 @@ class Outputs:
         self.diagnostics = dict(diagnostics or {})
         self.diagnostics_interval = diagnostics_interval
         self.resume = resume
+        self.sampled = dict(sampled or {})
         for name in RESERVED_NAMES:
             if name in self.diagnostics:
                 raise ValueError(f"diagnostic name {name!r} is reserved")
+            if name in self.sampled:
+                raise ValueError(f"sampled diagnostic name {name!r} is reserved")
+        for name in (*self.diagnostics, *self.sampled):
+            if "/" in name:
+                raise ValueError(f"diagnostic name {name!r} holds a '/'")
+        shared = sorted(self.sampled.keys() & self.diagnostics.keys())
+        if shared:
+            raise ValueError(
+                f"sampled diagnostic names {shared} are also in the time series"
+            )
 
     def latest_snapshot(self, mesh: Mesh) -> Snapshot:
         """Return the latest snapshot of the directory, loaded onto the mesh."""
@@ -102,7 +122,7 @@ class OutputWriter:
         self._outputs = outputs
         self._mesh = mesh
         self._writes = mesh.decomposition.rank == 0
-        self._commit = _commit()
+        self._commit = code_commit()
         self._time_series = outputs.path / TIME_SERIES_NAME
         self._times: list[float] = []
         self._steps: list[int] = []
@@ -115,6 +135,13 @@ class OutputWriter:
         else:
             self.step, self._index = 0, 0
             self._check_fresh()
+        self._shells: dict[str, torch.Tensor] = {}
+        if outputs.sampled:
+            shells = Shells(mesh)
+            self._shells = {
+                "wavenumbers": shells.wavenumbers.cpu(),
+                "counts": shells.counts.cpu(),
+            }
 
     def sample(self, state: State, time: float, step: int) -> None:
         """Buffer copies of the diagnostics on device on an evaluation step."""
@@ -128,11 +155,15 @@ class OutputWriter:
     def write(self, state: State, time: float, step: int, time_step: float) -> None:
         """Write the snapshot of an output time, then the buffered diagnostics.
 
+        The output time is a sample time, at which the sampled diagnostics are
+        evaluated.
+
         Raises:
-            FloatingPointError: A buffered diagnostic is not finite; nothing is
-                written.
+            FloatingPointError: A buffered or a sampled diagnostic is not finite;
+                nothing is written.
         """
         columns = self._columns()
+        sampled = self._sampled(state, time, step)
         mesh = self._mesh
         gathered = {key: mesh.decomposition.gather(t) for key, t in state.items()}
         if self._writes:
@@ -153,6 +184,10 @@ class OutputWriter:
                 )
                 for key, tensor in gathered.items():
                     snapshot.create_dataset(f"state/{key}", data=tensor.cpu().numpy())
+                for name, tensor in sampled.items():
+                    snapshot.create_dataset(f"diagnostics/{name}", data=tensor.numpy())
+                for name, tensor in self._shells.items():
+                    snapshot.create_dataset(f"shells/{name}", data=tensor.numpy())
             self._append_rows(columns)
         self._index += 1
         self._times.clear()
@@ -177,6 +212,8 @@ class OutputWriter:
         with h5py.File(latest, "r") as snapshot:
             latest_time = _number(snapshot.attrs, "time")
             latest_step = int(_number(snapshot.attrs, "step"))
+            group = snapshot.get("diagnostics")
+            sampled = set(group) if isinstance(group, h5py.Group) else set[str]()
         if time != latest_time:
             raise ValueError(
                 f"a resumed run must start at the latest snapshot's time "
@@ -195,6 +232,11 @@ class OutputWriter:
                 f"the time series holds the diagnostics {sorted(stored)}, "
                 f"expected {sorted(self._outputs.diagnostics)}"
             )
+        if sampled != set(self._outputs.sampled):
+            raise ValueError(
+                f"the latest snapshot holds the sampled diagnostics "
+                f"{sorted(sampled)}, expected {sorted(self._outputs.sampled)}"
+            )
         return latest_step, _snapshot_indices(self._outputs.path)[-1] + 1
 
     def _columns(self) -> dict[str, torch.Tensor]:
@@ -205,6 +247,18 @@ class OutputWriter:
         }
         self._check_finite(columns)
         return columns
+
+    def _sampled(self, state: State, time: float, step: int) -> dict[str, torch.Tensor]:
+        sampled: dict[str, torch.Tensor] = {}
+        for name, diagnostic in self._outputs.sampled.items():
+            value = diagnostic(state, time).cpu()
+            if not torch.isfinite(value).all():
+                raise FloatingPointError(
+                    f"sampled diagnostic {name!r} is not finite at step {step}, "
+                    f"time {time:.6g}"
+                )
+            sampled[name] = value
+        return sampled
 
     def _append_rows(self, columns: Mapping[str, torch.Tensor]) -> None:
         if not self._steps:
@@ -303,10 +357,15 @@ def _snapshot_path(directory: Path, index: int) -> Path:
 
 
 def _latest_snapshot_path(directory: Path) -> Path:
-    indices = _snapshot_indices(directory)
-    if not indices:
+    paths = snapshot_paths(directory)
+    if not paths:
         raise FileNotFoundError(f"{directory} holds no snapshot to resume from")
-    return _snapshot_path(directory, indices[-1])
+    return paths[-1]
+
+
+def snapshot_paths(directory: Path) -> list[Path]:
+    """Return the snapshots of a directory, in the order of their indices."""
+    return [_snapshot_path(directory, index) for index in _snapshot_indices(directory)]
 
 
 def _snapshot_indices(directory: Path) -> list[int]:
@@ -314,7 +373,8 @@ def _snapshot_indices(directory: Path) -> list[int]:
     return sorted(int(match[1]) for match in matches if match)
 
 
-def _commit() -> str:
+def code_commit() -> str:
+    """Return the commit of the code, or an empty string outside a git checkout."""
     package = Path(__file__).resolve().parent
     try:
         result = subprocess.run(

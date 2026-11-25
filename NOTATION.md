@@ -23,3 +23,10 @@ The conventions of the math in Specflow's glossary, ADRs, issues and docstrings.
 
 - $\langle \cdot \rangle$ is the mean over the periodic domain, and $\max$ the maximum over the mesh points.
 - $\|f\| = \langle |f|^2 \rangle^{1/2}$.
+- A prime marks a fluctuation, $f' = f - \langle f \rangle$, and never a root mean square, which is written $f_\text{rms}$.
+
+## Spectra
+
+- Shell $m$ holds the wavenumbers with $\mathrm{round}(|n|) = m$, centred on $\kappa_m = m \, \Delta\kappa$ with $\Delta\kappa = 2 \pi / L$; shell 0 holds the mean alone.
+- A spectrum is a density in $\kappa$: the spectrum of a quantity whose mean is $\sum_n Q(n)$ is $\frac{1}{\Delta\kappa} \sum_{\mathrm{round}(|n|) = m} Q(n)$ at $\kappa_m$, so that its sum over the shells times $\Delta\kappa$ is the mean.
+- A flux at a shell is the rate at which a quantity leaves the ball of shells $0, \dots, m$, through its edge at $(m + \tfrac12) \, \Delta\kappa$; it is positive outward.

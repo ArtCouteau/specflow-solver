@@ -95,8 +95,20 @@ _Avoid_: dealiasing, spectral filter
 ## Analysis
 
 **Diagnostic**:
-A quantity derived from the state for monitoring or analysis, such as kinetic energy, dissipation, enstrophy or divergence.
-_Avoid_: statistic, observable, quantity
+A quantity derived from one state for monitoring or analysis: a scalar such as kinetic energy, dissipation, enstrophy or divergence, or a function such as a spectrum, a PDF or a structure function.
+_Avoid_: observable, quantity
+
+**Fluctuation**:
+A field minus its mean over the periodic domain.
+_Avoid_: perturbation, fluctuating part
+
+**Statistic**:
+A diagnostic accumulated over the samples of a window, such as a time-averaged spectrum or a PDF built from many states.
+_Avoid_: diagnostic, average
+
+**Window**:
+The time interval whose samples a statistic accumulates, taken in a statistically steady state.
+_Avoid_: averaging period
 
 **Dissipation**:
 The rate at which kinetic energy is lost to viscosity, $2 \nu \langle S_{ij} S_{ij} \rangle$, with $S_{ij}$ the strain rate. A diagnostic, not a term.
@@ -106,6 +118,14 @@ _Avoid_: diffusion
 The split of the rate of change of a quadratic quantity, such as kinetic energy, into the contributions of each term.
 _Avoid_: balance
 
+**Budget spectrum**:
+One term's contribution to the rate of change of the energy spectrum, shell by shell.
+_Avoid_: transfer spectrum, energy transfer
+
+**Flux**:
+The rate at which advection carries energy out of the ball of shells below a wavenumber.
+_Avoid_: cumulative transfer
+
 ## Runs
 
 **Simulation**:
@@ -113,7 +133,7 @@ The time integration of a set of equations from an initial state over a time int
 _Avoid_: solver
 
 **Snapshot**:
-The state and the term states saved at one output time; a restart starts from a snapshot.
+The state, the term states and the diagnostics meant to be averaged, saved at one output time; a restart starts from a snapshot.
 _Avoid_: dump, checkpoint, restart file
 
 ## Parallelism
