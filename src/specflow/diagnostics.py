@@ -28,6 +28,17 @@ def kinetic_energy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
     return _mean_square(mesh, velocity_spectral, 1).mul_(0.5)
 
 
+def fluctuation_kinetic_energy(
+    mesh: Mesh, velocity_spectral: torch.Tensor
+) -> torch.Tensor:
+    r"""Return the kinetic energy of the fluctuation, without the mean mode.
+
+    It is $\tfrac12 \langle u'_i u'_i \rangle$.
+    """
+    fluctuating = (mesh.wavenumbers_squared != 0).to(mesh.dtype)
+    return _mean_square(mesh, velocity_spectral, 1, fluctuating).mul_(0.5)
+
+
 def dissipation(
     mesh: Mesh, velocity_spectral: torch.Tensor, viscosity: float
 ) -> torch.Tensor:
