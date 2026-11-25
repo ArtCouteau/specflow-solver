@@ -4,10 +4,12 @@ Snapshots are named by a zero-padded index, ``snapshot_000000.h5``, and hold the
 spectral state under ``state/<key>`` with the metadata as attributes: ``time``,
 ``step``, ``time_step`` (the controller's Δt proposed from the snapshot's state),
 ``points``, ``length``, ``dimension``, ``dtype`` and ``commit`` (empty outside a
-git checkout). The time series, ``time_series.h5``, holds one resizable dataset
-each for ``time``, ``step`` and every diagnostic, with one row per evaluation.
-Fields go through the decomposition's gather and scatter, only rank 0 writes, and
-nothing is ever deleted or overwritten.
+git checkout). The time series, ``time_series.h5``, created with the first
+snapshot, holds one resizable dataset each for ``time``, ``step`` and every
+diagnostic, with one row per evaluation up to the latest snapshot's step: each
+output time writes its snapshot before its rows. Fields go through the
+decomposition's gather and scatter, only rank 0 writes, and nothing is ever
+deleted or overwritten.
 """
 
 import subprocess
@@ -120,15 +122,17 @@ class OutputWriter:
             self._buffers[name].append(diagnostic(state, time).clone())
 
     def write(self, state: State, time: float, step: int, time_step: float) -> None:
-        """Write the buffered diagnostics, then the snapshot of an output time.
+        """Write the snapshot of an output time, then the buffered diagnostics.
 
         Raises:
-            FloatingPointError: A buffered diagnostic is not finite.
+            FloatingPointError: A buffered diagnostic is not finite; nothing is
+                written.
         """
-        self._flush()
+        columns = self._columns()
         mesh = self._mesh
         gathered = {key: mesh.decomposition.gather(t) for key, t in state.items()}
         if self._writes:
+            self._outputs.path.mkdir(parents=True, exist_ok=True)
             path = _snapshot_path(self._outputs.path, self._index)
             with h5py.File(path, "w-") as snapshot:
                 snapshot.attrs.update(
@@ -145,7 +149,12 @@ class OutputWriter:
                 )
                 for key, tensor in gathered.items():
                     snapshot.create_dataset(f"state/{key}", data=tensor.cpu().numpy())
+            self._append_rows(columns)
         self._index += 1
+        self._times.clear()
+        self._steps.clear()
+        for buffer in self._buffers.values():
+            buffer.clear()
 
     def _check_fresh(self) -> None:
         path = self._outputs.path
@@ -153,10 +162,11 @@ class OutputWriter:
             raise FileExistsError(
                 f"{path} already holds snapshots; resume or choose another directory"
             )
-        if self._writes:
-            path.mkdir(parents=True, exist_ok=True)
-            with h5py.File(self._time_series, "w-"):
-                pass
+        if self._time_series.exists():
+            raise FileExistsError(
+                f"{path} already holds a time series; resume or choose another "
+                f"directory"
+            )
 
     def _check_resume(self, time: float) -> tuple[int, int]:
         latest = _latest_snapshot_path(self._outputs.path)
@@ -170,6 +180,12 @@ class OutputWriter:
             )
         with h5py.File(self._time_series, "r") as series:
             stored = set(series) - set(RESERVED_NAMES)
+            steps = _read(series, "step") if "step" in series else torch.zeros(0)
+        if steps.numel() and steps.max().item() > latest_step:
+            raise ValueError(
+                f"the time series holds rows up to step {int(steps.max().item())}, "
+                f"past the latest snapshot's step {latest_step}"
+            )
         if stored != set(self._outputs.diagnostics):
             raise ValueError(
                 f"the time series holds the diagnostics {sorted(stored)}, "
@@ -177,23 +193,23 @@ class OutputWriter:
             )
         return latest_step, _snapshot_indices(self._outputs.path)[-1] + 1
 
-    def _flush(self) -> None:
+    def _columns(self) -> dict[str, torch.Tensor]:
         if not self._steps:
-            return
+            return {}
         columns = {
             name: torch.stack(buffer).cpu() for name, buffer in self._buffers.items()
         }
         self._check_finite(columns)
-        if self._writes:
-            with h5py.File(self._time_series, "r+") as series:
-                _append(series, "time", torch.tensor(self._times, dtype=torch.float64))
-                _append(series, "step", torch.tensor(self._steps, dtype=torch.int64))
-                for name, column in columns.items():
-                    _append(series, name, column)
-        self._times.clear()
-        self._steps.clear()
-        for buffer in self._buffers.values():
-            buffer.clear()
+        return columns
+
+    def _append_rows(self, columns: Mapping[str, torch.Tensor]) -> None:
+        if not self._steps:
+            return
+        with h5py.File(self._time_series, "a") as series:
+            _append(series, "time", torch.tensor(self._times, dtype=torch.float64))
+            _append(series, "step", torch.tensor(self._steps, dtype=torch.int64))
+            for name, column in columns.items():
+                _append(series, name, column)
 
     def _check_finite(self, columns: Mapping[str, torch.Tensor]) -> None:
         for row in range(len(self._steps)):
@@ -261,6 +277,13 @@ def _append(series: h5py.File, name: str, column: torch.Tensor) -> None:
     rows = dataset.shape[0]
     dataset.resize(rows + column.shape[0], axis=0)
     dataset[rows:] = column.numpy()
+
+
+def _read(series: h5py.File, name: str) -> torch.Tensor:
+    dataset = series[name]
+    if not isinstance(dataset, h5py.Dataset):
+        raise ValueError(f"time series entry {name!r} is not a dataset")
+    return torch.from_numpy(dataset[()])
 
 
 def _number(attrs: h5py.AttributeManager, name: str) -> float:

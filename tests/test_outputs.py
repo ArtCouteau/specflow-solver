@@ -1,7 +1,7 @@
 import logging
 import math
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import h5py
@@ -233,6 +233,80 @@ def test_resume_continues_numbering_and_time_series(tmp_path: Path) -> None:
     assert whole_series.keys() == split_series.keys()
     for name, column in whole_series.items():
         assert torch.equal(split_series[name], column)
+
+
+@dataclass(frozen=True)
+class FailingGatherDecomposition(SerialDecomposition):
+    failing_call: int
+    calls: list[int] = field(default_factory=list[int])
+
+    def gather(self, field_spectral: torch.Tensor) -> torch.Tensor:
+        self.calls.append(len(self.calls))
+        if len(self.calls) == self.failing_call:
+            raise OSError("gather failed")
+        return field_spectral
+
+
+def test_resume_after_a_failed_output_time_continues_the_time_series(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    initial = {"velocity": exact_spectral(mesh, 0)}
+    make_simulation(mesh, energy_outputs(mesh, tmp_path / "whole")).run(initial, 0, 1)
+    failing = Mesh(POINTS, LENGTH, 1, FailingGatherDecomposition(POINTS, 1, 3))
+    with pytest.raises(OSError, match="gather failed"):
+        make_simulation(failing, energy_outputs(failing, tmp_path / "split")).run(
+            initial, 0, 1
+        )
+
+    outputs = energy_outputs(mesh, tmp_path / "split", resume=True)
+    latest = outputs.latest_snapshot(mesh)
+    make_simulation(mesh, outputs).run(latest.state, latest.time, 1)
+
+    whole_series = read_time_series(tmp_path / "whole")
+    split_series = read_time_series(tmp_path / "split")
+    for name, column in whole_series.items():
+        assert torch.equal(split_series[name], column)
+
+
+def test_resume_with_time_series_rows_past_the_latest_snapshot_raises(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    make_simulation(mesh, energy_outputs(mesh, tmp_path)).run(
+        {"velocity": exact_spectral(mesh, 0)}, 0, 0.5
+    )
+    with h5py.File(tmp_path / "time_series.h5", "r+") as series:
+        for name in series:
+            dataset = series[name]
+            assert isinstance(dataset, h5py.Dataset)
+            dataset.resize(dataset.shape[0] + 1, axis=0)
+            dataset[-1] = 7 if name == "step" else 0.0
+    outputs = energy_outputs(mesh, tmp_path, resume=True)
+    latest = outputs.latest_snapshot(mesh)
+
+    with pytest.raises(ValueError, match="step 7"):
+        make_simulation(mesh, outputs).run(latest.state, latest.time, 1)
+
+
+def test_a_run_failing_before_its_first_snapshot_leaves_the_directory_fresh(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    initial = {"velocity": exact_spectral(mesh, 0)}
+
+    def not_a_number(state: State, time: float) -> torch.Tensor:
+        return torch.tensor(math.nan)
+
+    with pytest.raises(FloatingPointError):
+        make_simulation(mesh, Outputs(tmp_path, INTERVAL, {"nan": not_a_number})).run(
+            initial, 0, 1
+        )
+    assert list(tmp_path.iterdir()) == []
+
+    make_simulation(mesh, energy_outputs(mesh, tmp_path)).run(initial, 0, 1)
+
+    assert len(snapshot_paths(tmp_path)) == 5
 
 
 def test_resume_from_a_directory_without_snapshots_raises(tmp_path: Path) -> None:
