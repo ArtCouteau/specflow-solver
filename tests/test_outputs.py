@@ -12,13 +12,14 @@ import pytest
 import torch
 
 import specflow
-from specflow import diagnostics, flows
+from specflow import diagnostics, flows, spectra
 from specflow.decomposition import SerialDecomposition
 from specflow.equation import Equation
 from specflow.integrators import IFRK4
 from specflow.mesh import Mesh
 from specflow.outputs import Outputs, load_snapshot
 from specflow.simulation import Simulation
+from specflow.spectra import Shells
 from specflow.terms import Diffusion, State
 from specflow.time_step import FixedTimeStep
 
@@ -253,6 +254,132 @@ def test_resume_continues_numbering_and_time_series(tmp_path: Path) -> None:
         assert torch.equal(split_series[name], column)
 
 
+def spectrum_outputs(mesh: Mesh, path: Path, resume: bool = False) -> Outputs:
+    shells = Shells(mesh)
+
+    def energy(state: State, time: float) -> torch.Tensor:
+        return diagnostics.kinetic_energy(mesh, state["velocity"])
+
+    def spectrum(state: State, time: float) -> torch.Tensor:
+        return spectra.energy_spectrum(shells, state["velocity"])
+
+    named = {"energy": energy}
+    return Outputs(path, INTERVAL, named, resume=resume, sampled={"spectrum": spectrum})
+
+
+def exact_spectrum(time: float) -> list[float]:
+    spectrum = [0.0] * (POINTS // 2 + 1)
+    for integer, amplitude in AMPLITUDES.items():
+        decay = math.exp(-2 * VISCOSITY * integer**2 * time)
+        spectrum[integer] = 0.25 * amplitude**2 * decay
+    return spectrum
+
+
+def test_each_snapshot_holds_its_sampled_diagnostics_and_shells(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    shells = Shells(mesh)
+
+    make_simulation(mesh, spectrum_outputs(mesh, tmp_path)).run(
+        {"velocity": exact_spectral(mesh, 0)}, 0, 1
+    )
+
+    paths = snapshot_paths(tmp_path)
+    assert len(paths) == 5
+    for index, path in enumerate(paths):
+        with h5py.File(path, "r") as snapshot:
+            spectrum = read_dataset(snapshot, "diagnostics/spectrum")
+            wavenumbers = read_dataset(snapshot, "shells/wavenumbers")
+            counts = read_dataset(snapshot, "shells/counts")
+            assert sorted(snapshot) == ["diagnostics", "shells", "state"]
+        assert spectrum.tolist() == pytest.approx(
+            exact_spectrum(index * INTERVAL), abs=1e-14
+        )
+        assert torch.equal(wavenumbers, shells.wavenumbers)
+        assert torch.equal(counts, shells.counts)
+        assert counts.sum().item() == POINTS
+    assert "spectrum" not in read_time_series(tmp_path)
+
+
+def test_a_snapshot_without_sampled_diagnostics_holds_the_state_alone(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+
+    make_simulation(mesh, energy_outputs(mesh, tmp_path)).run(
+        {"velocity": exact_spectral(mesh, 0)}, 0, 0
+    )
+
+    with h5py.File(tmp_path / "snapshot_000000.h5", "r") as snapshot:
+        assert list(snapshot) == ["state"]
+
+
+def test_resume_keeps_the_sampled_diagnostics_of_a_whole_run(tmp_path: Path) -> None:
+    mesh = make_mesh()
+    initial = {"velocity": exact_spectral(mesh, 0)}
+    make_simulation(mesh, spectrum_outputs(mesh, tmp_path / "whole")).run(initial, 0, 1)
+    make_simulation(mesh, spectrum_outputs(mesh, tmp_path / "split")).run(
+        initial, 0, 0.5
+    )
+
+    outputs = spectrum_outputs(mesh, tmp_path / "split", resume=True)
+    latest = outputs.latest_snapshot(mesh)
+    make_simulation(mesh, outputs).run(latest.state, latest.time, 1)
+
+    for whole, split in zip(
+        snapshot_paths(tmp_path / "whole"),
+        snapshot_paths(tmp_path / "split"),
+        strict=True,
+    ):
+        with h5py.File(whole, "r") as first, h5py.File(split, "r") as second:
+            for name in ("diagnostics/spectrum", "shells/wavenumbers", "shells/counts"):
+                assert torch.equal(
+                    read_dataset(first, name), read_dataset(second, name)
+                )
+
+
+@pytest.mark.parametrize("names", [(), ("spectrum", "other")])
+def test_resume_with_other_sampled_diagnostics_raises(
+    tmp_path: Path, names: tuple[str, ...]
+) -> None:
+    mesh = make_mesh()
+    outputs = spectrum_outputs(mesh, tmp_path)
+    make_simulation(mesh, outputs).run({"velocity": exact_spectral(mesh, 0)}, 0, 0.5)
+    spectrum = outputs.sampled["spectrum"]
+    other = Outputs(
+        tmp_path,
+        INTERVAL,
+        outputs.diagnostics,
+        resume=True,
+        sampled={name: spectrum for name in names},
+    )
+    latest = other.latest_snapshot(mesh)
+
+    with pytest.raises(ValueError, match="sampled diagnostics"):
+        make_simulation(mesh, other).run(latest.state, latest.time, 1)
+
+
+def test_a_non_finite_sampled_diagnostic_raises_with_its_step_and_time(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+
+    def blowing_up(state: State, time: float) -> torch.Tensor:
+        return torch.tensor([1.0, math.inf if time > 0.3 else 1.0])
+
+    outputs = Outputs(tmp_path, INTERVAL, sampled={"blowing up": blowing_up})
+
+    with pytest.raises(FloatingPointError, match="'blowing up'.*step 6, time 0.5"):
+        make_simulation(mesh, outputs).run({"velocity": exact_spectral(mesh, 0)}, 0, 1)
+
+    assert [path.name for path in snapshot_paths(tmp_path)] == [
+        "snapshot_000000.h5",
+        "snapshot_000001.h5",
+    ]
+    assert read_time_series(tmp_path)["step"].tolist() == list(range(4))
+
+
 @dataclass(frozen=True)
 class FailingGatherDecomposition(SerialDecomposition):
     failing_call: int
@@ -466,6 +593,7 @@ from specflow.integrators import IFRK4
 from specflow.mesh import Mesh
 from specflow.outputs import Outputs
 from specflow.simulation import Simulation
+from specflow.spectra import Shells
 from specflow.terms import Diffusion
 from specflow.time_step import FixedTimeStep
 
@@ -536,3 +664,19 @@ def test_invalid_outputs_raise(
 
     with pytest.raises(ValueError, match=match):
         Outputs(tmp_path, interval, {name: zero}, diagnostics_interval)
+
+
+@pytest.mark.parametrize(
+    ("name", "match"),
+    [
+        ("energy", "time series"),
+        ("time", "reserved"),
+        ("step", "reserved"),
+    ],
+)
+def test_invalid_sampled_names_raise(tmp_path: Path, name: str, match: str) -> None:
+    def zero(state: State, time: float) -> torch.Tensor:
+        return torch.zeros(())
+
+    with pytest.raises(ValueError, match=match):
+        Outputs(tmp_path, INTERVAL, {"energy": zero}, sampled={name: zero})
