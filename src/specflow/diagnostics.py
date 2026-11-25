@@ -1,6 +1,8 @@
-"""Global diagnostics of spectral fields, as Parseval sums with no FFT.
+"""Diagnostics of a spectral velocity, and the local fields they average.
 
-Each diagnostic reduces the component and spatial axes and keeps the leading axes.
+Each global diagnostic is a Parseval sum with no FFT; it reduces the component and
+spatial axes and keeps the leading axes. Each local field is built at the mesh points,
+for the moments and histograms of the distributions module.
 """
 
 import torch
@@ -70,3 +72,60 @@ def relative_error(
     difference = _mean_square(mesh, field_spectral - reference_spectral, component_axes)
     reference = _mean_square(mesh, reference_spectral, component_axes)
     return difference.div_(reference).sqrt_()
+
+
+def longitudinal_derivatives(
+    mesh: Mesh, velocity_spectral: torch.Tensor
+) -> torch.Tensor:
+    r"""Return the longitudinal derivatives $\partial_i u_i$ at the mesh points.
+
+    There is no sum over $i$: the component axis holds one derivative per component.
+    """
+    derivatives_spectral = velocity_spectral * mesh.derivative_wavenumbers
+    return mesh.decomposition.to_physical(derivatives_spectral.mul_(1j))
+
+
+def transverse_derivatives(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
+    r"""Return the transverse derivatives $\partial_j u_i$ at the mesh points.
+
+    The pairs $i \ne j$ lie on one component axis of size $d (d - 1)$, in row-major
+    order of $(i, j)$.
+    """
+    d = mesh.dimension
+    gradient_spectral = mesh.gradient(velocity_spectral).flatten(-d - 2, -d - 1)
+    pairs = [i * d + j for i in range(d) for j in range(d) if i != j]
+    index = torch.tensor(pairs, device=gradient_spectral.device)
+    off_diagonal_spectral = gradient_spectral.index_select(-d - 1, index)
+    return mesh.decomposition.to_physical(off_diagonal_spectral)
+
+
+def local_dissipation(
+    mesh: Mesh, velocity_spectral: torch.Tensor, viscosity: float
+) -> torch.Tensor:
+    r"""Return the local dissipation $2 \nu S_{ij} S_{ij}$ at the mesh points.
+
+    $S_{ij} = \tfrac12 (\partial_j u_i + \partial_i u_j)$ is the strain rate.
+    """
+    d = mesh.dimension
+    gradient_physical = mesh.decomposition.to_physical(mesh.gradient(velocity_spectral))
+    component_dims = (-d - 2, -d - 1)
+    twice_strain_physical = gradient_physical + gradient_physical.transpose(
+        *component_dims
+    )
+    return twice_strain_physical.square_().sum(dim=component_dims).mul_(0.5 * viscosity)
+
+
+def local_enstrophy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
+    r"""Return the local enstrophy $\tfrac12 \omega^2$ at the mesh points, in 2D or 3D.
+
+    It raises a ``ValueError`` on a 1D mesh.
+    """
+    if mesh.dimension == 2:
+        vorticity_spectral = mesh.curl_2d(velocity_spectral)
+        vorticity_physical = mesh.decomposition.to_physical(vorticity_spectral)
+        return vorticity_physical.square_().mul_(0.5)
+    if mesh.dimension == 3:
+        vorticity_spectral = mesh.curl_3d(velocity_spectral)
+        vorticity_physical = mesh.decomposition.to_physical(vorticity_spectral)
+        return vorticity_physical.square_().sum(dim=-4).mul_(0.5)
+    raise ValueError(f"local enstrophy needs a 2D or 3D mesh, got {mesh.dimension}D")
