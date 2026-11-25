@@ -29,4 +29,8 @@ def cross_2d(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 
 def cross_3d(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """Return the vector a × b of two 3D vector fields."""
-    return torch.linalg.cross(a, b, dim=-4)
+    a_x, a_y, a_z = a.unbind(dim=-4)
+    b_x, b_y, b_z = b.unbind(dim=-4)
+    return torch.stack(
+        [a_y * b_z - a_z * b_y, a_z * b_x - a_x * b_z, a_x * b_y - a_y * b_x], dim=-4
+    )

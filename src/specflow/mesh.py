@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import torch
 
+from specflow import algebra
 from specflow.decomposition import Decomposition
 
 COMPLEX_DTYPES = {torch.float32: torch.complex64, torch.float64: torch.complex128}
@@ -65,6 +66,45 @@ class Mesh:
     def physical_shape(self) -> tuple[int, ...]:
         """The local shape of the spatial axes of a physical field."""
         return tuple(s.stop - s.start for s in self.decomposition.physical_slices)
+
+    def gradient(self, field_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the gradient, the derivative axis becoming the last component axis.
+
+        A vector field u gives the tensor field ∂ⱼuᵢ, with j on the last component axis.
+        """
+        derivative_axis = -self.dimension - 1
+        gradient_spectral = field_spectral.unsqueeze(derivative_axis) * self.wavenumbers
+        return gradient_spectral.mul_(1j)
+
+    def divergence(self, field_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the divergence, contracting the last component axis."""
+        return algebra.inner(field_spectral, self.wavenumbers, self.dimension).mul_(1j)
+
+    def laplacian(self, field_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the Laplacian, componentwise."""
+        return (field_spectral * self.wavenumbers_squared).neg_()
+
+    def curl_2d(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the scalar vorticity ∂ₓu_y - ∂_yuₓ of a 2D vector field."""
+        if self.dimension != 2:
+            raise ValueError(f"curl_2d needs a 2D mesh, got {self.dimension}D")
+        return algebra.cross_2d(self.wavenumbers, velocity_spectral).mul_(1j)
+
+    def curl_3d(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the vorticity vector ∇ × u of a 3D vector field."""
+        if self.dimension != 3:
+            raise ValueError(f"curl_3d needs a 3D mesh, got {self.dimension}D")
+        return algebra.cross_3d(self.wavenumbers, velocity_spectral).mul_(1j)
+
+    def project(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
+        """Return the divergence-free part u - k(k·u)/k² of a vector field."""
+        coefficient_spectral = algebra.inner(
+            self.wavenumbers, velocity_spectral, self.dimension
+        ).mul_(self.inverse_wavenumbers_squared)
+        longitudinal_spectral = (
+            coefficient_spectral.unsqueeze(-self.dimension - 1) * self.wavenumbers
+        )
+        return longitudinal_spectral.neg_().add_(velocity_spectral)
 
     def _validate(self) -> None:
         if self.points < 2 or self.points % 2:
