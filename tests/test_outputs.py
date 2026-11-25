@@ -375,6 +375,19 @@ def test_one_info_line_per_output_time(
     ]
 
 
+def test_each_debug_line_holds_the_time_step_taken(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    mesh = make_mesh()
+    simulation = make_simulation(mesh, Outputs(tmp_path, INTERVAL))
+
+    with caplog.at_level(logging.DEBUG, logger="specflow"):
+        simulation.run({"velocity": exact_spectral(mesh, 0)}, 0, 0.5)
+
+    debug = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
+    assert [message.split("Δt ")[1] for message in debug] == 2 * ["0.1", "0.1", "0.05"]
+
+
 def test_the_library_never_configures_logging(tmp_path: Path) -> None:
     mesh = make_mesh()
 

@@ -147,13 +147,15 @@ class Simulation:
         for stop in stops:
             while time < stop:
                 if stop - time <= proposed * (1 + LANDING_TOLERANCE):
-                    stepper.step(time, stop - time)
+                    taken = stop - time
+                    stepper.step(time, taken)
                     time = stop
                 else:
-                    stepper.step(time, proposed)
-                    time += proposed
+                    taken = proposed
+                    stepper.step(time, taken)
+                    time += taken
                 step += 1
-                logger.debug("step %d, time %.6g, Δt %.6g", step, time, proposed)
+                logger.debug("step %d, time %.6g, Δt %.6g", step, time, taken)
                 if writer is not None:
                     writer.sample(state, time, step)
                 proposed = self._propose(state, time, step)
