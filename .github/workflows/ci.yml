@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      UV_NO_SYNC: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.10"
+          python-version: "3.12"
+
+      - name: Check that the lock file is up to date
+        run: uv lock --check
+
+      - name: Install the locked versions with CPU torch
+        run: |
+          uv export --frozen --all-groups --no-emit-project --no-hashes -o "$RUNNER_TEMP/constraints.txt"
+          uv venv
+          uv pip install --torch-backend cpu -c "$RUNNER_TEMP/constraints.txt" -e . --group dev
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Format
+        run: uv run ruff format --check
+
+      - name: Type check
+        run: uv run pyright
+
+      - name: Comment ban
+        run: uv run python scripts/check_comments.py
+
+      - name: Test
+        run: uv run pytest -m "not gpu"
