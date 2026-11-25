@@ -97,15 +97,21 @@ class SerialDecomposition:
         return self.dimension * (slice(0, self.points),)
 
     def to_spectral(self, field_physical: torch.Tensor) -> torch.Tensor:
-        """Return the Fourier coefficients of a field, with forward normalization."""
+        """Return the Fourier coefficients of a field, with forward normalization.
+
+        Expanded and strided views are copied to contiguous memory first.
+        """
         return torch.fft.rfftn(
-            field_physical, s=self._sizes, dim=self._axes, norm="forward"
+            field_physical.contiguous(), s=self._sizes, dim=self._axes, norm="forward"
         )
 
     def to_physical(self, field_spectral: torch.Tensor) -> torch.Tensor:
-        """Return a field at the mesh points, with forward normalization."""
+        """Return a field at the mesh points, with forward normalization.
+
+        Expanded and strided views are copied to contiguous memory first.
+        """
         return torch.fft.irfftn(
-            field_spectral, s=self._sizes, dim=self._axes, norm="forward"
+            field_spectral.contiguous(), s=self._sizes, dim=self._axes, norm="forward"
         )
 
     def sum(self, field: torch.Tensor) -> torch.Tensor:

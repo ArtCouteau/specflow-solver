@@ -21,7 +21,7 @@ jobs:
 
       - name: Install the locked versions with CPU torch
         run: |
-          uv export --frozen --all-groups --no-emit-project --no-hashes -o "$RUNNER_TEMP/constraints.txt"
+          uv export --frozen --all-groups --no-emit-project --no-hashes | sed 's/+cu121//' > "$RUNNER_TEMP/constraints.txt"
           uv venv
           uv pip install --torch-backend cpu -c "$RUNNER_TEMP/constraints.txt" -e . --group dev
 
