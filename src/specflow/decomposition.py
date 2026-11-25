@@ -55,6 +55,17 @@ class Decomposition(Protocol):
         """Return the maximum over the spatial axes, on the field's device."""
         ...
 
+    def binned_sum(
+        self, field: torch.Tensor, bins: torch.Tensor, bin_count: int
+    ) -> torch.Tensor:
+        """Return the sum over the spatial axes of the values in each bin.
+
+        ``bins`` holds the bin of each value, in ``range(bin_count)``, and broadcasts
+        to the shape of ``field``. The bins form a last axis of length ``bin_count``,
+        on the field's device and in its dtype; an empty bin is zero.
+        """
+        ...
+
     def gather(self, field_spectral: torch.Tensor) -> torch.Tensor:
         """Return the full field on rank 0, from the local part on each rank."""
         ...
@@ -112,6 +123,17 @@ class SerialDecomposition(Decomposition):
     @override
     def max(self, field: torch.Tensor) -> torch.Tensor:
         return field.amax(dim=self._axes)
+
+    @override
+    def binned_sum(
+        self, field: torch.Tensor, bins: torch.Tensor, bin_count: int
+    ) -> torch.Tensor:
+        leading = field.shape[: -self.dimension]
+        index = bins.to(field.device, torch.int64).expand_as(field)
+        totals = field.new_zeros(*leading, bin_count)
+        return totals.scatter_add_(
+            -1, index.reshape(*leading, -1), field.reshape(*leading, -1)
+        )
 
     @override
     def gather(self, field_spectral: torch.Tensor) -> torch.Tensor:

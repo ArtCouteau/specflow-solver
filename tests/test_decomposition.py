@@ -95,3 +95,60 @@ def test_gather_then_scatter_returns_the_local_field(dimension: int) -> None:
     gathered = mesh.decomposition.gather(field_spectral)
     assert gathered.shape == (3, *((dimension - 1) * (8,) + (5,)))
     torch.testing.assert_close(mesh.decomposition.scatter(gathered), field_spectral)
+
+
+def random_bins(mesh: Mesh, count: int, *leading: int) -> torch.Tensor:
+    generator = torch.Generator().manual_seed(1)
+    shape = (*leading, *(mesh.dimension * (mesh.points,)))
+    return torch.randint(count, shape, generator=generator)
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_binned_sum_totals_the_plain_sum(dimension: int) -> None:
+    mesh = make_mesh(4, dimension)
+    field_physical = random_physical(mesh, 2, 3)
+    bins = random_bins(mesh, 5, 2, 3)
+    binned = mesh.decomposition.binned_sum(field_physical, bins, 5)
+    torch.testing.assert_close(
+        binned.sum(-1), mesh.decomposition.sum(field_physical), rtol=0, atol=1e-13
+    )
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_binned_sum_keeps_the_leading_axes_device_and_dtype(dimension: int) -> None:
+    mesh = make_mesh(4, dimension)
+    field_physical = random_physical(mesh, 2, 3)
+    binned = mesh.decomposition.binned_sum(field_physical, random_bins(mesh, 5), 5)
+    assert binned.shape == (2, 3, 5)
+    assert binned.dtype == field_physical.dtype
+    assert binned.device == field_physical.device
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_binned_sum_matches_the_sum_over_each_bin(dimension: int) -> None:
+    mesh = make_mesh(4, dimension)
+    field_physical = random_physical(mesh, 3)
+    bins = random_bins(mesh, 4)
+    binned = mesh.decomposition.binned_sum(field_physical, bins, 4)
+    for b in range(4):
+        expected = mesh.decomposition.sum(field_physical * (bins == b))
+        torch.testing.assert_close(binned[..., b], expected, rtol=0, atol=1e-13)
+
+
+def test_binned_sum_leaves_an_empty_bin_at_zero() -> None:
+    mesh = make_mesh(4, 2)
+    field_physical = random_physical(mesh, 2)
+    bins = torch.zeros(4, 4, dtype=torch.int64)
+    bins[1:] = 2
+    binned = mesh.decomposition.binned_sum(field_physical, bins, 4)
+    assert torch.equal(binned[:, 1], torch.zeros(2, dtype=torch.float64))
+    assert torch.equal(binned[:, 3], torch.zeros(2, dtype=torch.float64))
+
+
+def test_binned_sum_counts_integer_values() -> None:
+    mesh = make_mesh(4, 3)
+    bins = random_bins(mesh, 6, 3)
+    ones = torch.ones(3, 4, 4, 4, dtype=torch.int64)
+    counts = mesh.decomposition.binned_sum(ones, bins, 6)
+    assert counts.dtype == torch.int64
+    assert torch.equal(counts.sum(-1), torch.full((3,), 64))
