@@ -16,6 +16,7 @@ from specflow.integrators import IFRK4
 from specflow.mesh import Mesh
 from specflow.outputs import TIME_SERIES_NAME, Outputs
 from specflow.simulation import Simulation
+from specflow.statistics import window_statistic
 from specflow.terms import Advection, Diffusion, State
 from specflow.time_step import CFLTimeStep
 
@@ -24,6 +25,8 @@ REFERENCE = ROOT / "data" / "TGV_Re1600.dat"
 CASE = ROOT / "cases" / "taylor_green_3d.py"
 CASE_POINTS = 16
 CASE_SNAPSHOTS = 5
+CASE_END = 20.0
+CASE_BLOCK_LENGTH = 2
 SAMPLED = (
     "advection_budget_spectrum",
     "diffusion_budget_spectrum",
@@ -298,9 +301,12 @@ def read_series_rows(path: Path, steps: torch.Tensor) -> dict[str, torch.Tensor]
 
 
 def test_the_case_writes_its_sampled_diagnostics_into_each_snapshot(
-    case_output: Path,
+    case_output: Path, tmp_path: Path
 ) -> None:
     snapshots = read_snapshots(case_output)
+    statistic = tmp_path / "time_average.h5"
+
+    window_statistic(case_output, statistic, 0.0, CASE_END, CASE_BLOCK_LENGTH)
 
     assert len(snapshots) == CASE_SNAPSHOTS
     for snapshot in snapshots:
@@ -312,6 +318,17 @@ def test_the_case_writes_its_sampled_diagnostics_into_each_snapshot(
                 assert snapshot[f"diagnostics/{name}"].shape == shells
         assert snapshot["diagnostics/longitudinal_derivative_moments"].shape == (4, 3)
         assert snapshot["shells/counts"].sum().item() == CASE_POINTS**3
+    with h5py.File(statistic, "r") as average:
+        assert average.attrs["snapshot_samples"] == CASE_SNAPSHOTS
+        for name in SAMPLED:
+            shape = snapshots[0][f"diagnostics/{name}"].shape
+            for kind in ("mean", "standard_error"):
+                assert read_dataset(average, f"{kind}/{name}").shape == shape
+        for name in ("wavenumbers", "counts"):
+            assert torch.equal(
+                read_dataset(average, f"shells/{name}"),
+                snapshots[0][f"shells/{name}"],
+            )
 
 
 def test_the_sampled_spectra_close_on_the_time_series(case_output: Path) -> None:
