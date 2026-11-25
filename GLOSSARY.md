@@ -5,11 +5,11 @@ Specflow simulates flows in a periodic domain with a pseudo-spectral method: var
 ## Domain
 
 **Periodic domain**:
-The region [0, L)^d, with d = 1, 2 or 3, periodic in every direction.
+The region $[0, L)^d$, with $d = 1$, 2 or 3, periodic in every direction.
 _Avoid_: triply periodic domain, box
 
 **Mesh**:
-The discretization of the periodic domain: N equispaced points per direction, N even, and the matching wavenumbers.
+The discretization of the periodic domain: $N$ equispaced points per direction, $N$ even, and the matching wavenumbers.
 _Avoid_: grid
 
 ## Representation
@@ -55,7 +55,7 @@ The time derivative of a variable, as a function of the state and the time.
 _Avoid_: RHS, right-hand side
 
 **Linear operator**:
-The part of an equation's tendency formed by its linear terms: one multiplier per wavenumber, such as −νk².
+The part of an equation's tendency formed by its linear terms: one multiplier per wavenumber, such as $-\nu \kappa^2$.
 _Avoid_: stiff part, implicit part
 
 **Contribution**:
@@ -68,11 +68,11 @@ _Avoid_: pressure term, pressure solve
 ## Terms
 
 **Advection**:
-Transport of a variable by the velocity, such as (u·∇)u or u·∇θ. The only dealiased term.
+Transport of a variable by the velocity, such as $u_j \partial_j u_i$ or $u_j \partial_j \theta$. The only dealiased term.
 _Avoid_: convection
 
 **Diffusion**:
-The linear term κ∇²q with a constant diffusivity κ (the viscosity ν for velocity).
+The linear term $\alpha \nabla^2 q$ with a constant diffusivity $\alpha$ (the viscosity $\nu$ for velocity).
 _Avoid_: viscous term, dissipation
 
 **Stress closure**:
@@ -99,7 +99,7 @@ A quantity derived from the state for monitoring or analysis, such as kinetic en
 _Avoid_: statistic, observable, quantity
 
 **Dissipation**:
-The rate at which kinetic energy is lost to viscosity, ε = 2ν⟨SᵢⱼSᵢⱼ⟩. A diagnostic, not a term.
+The rate at which kinetic energy is lost to viscosity, $2 \nu \langle S_{ij} S_{ij} \rangle$, with $S_{ij}$ the strain rate. A diagnostic, not a term.
 _Avoid_: diffusion
 
 **Budget**:
@@ -124,3 +124,15 @@ The split of the mesh across ranks; the serial decomposition gives the whole mes
 **Rank**:
 One process of a distributed simulation, holding its part of the decomposition; ranks are numbered from 0. Never the order of a tensor.
 _Avoid_: process, worker
+
+## Notation
+
+Math is written in TeX. Repeated indices are summed, $\nabla^2 = \partial_j \partial_j$, and the square of a vector is its squared norm. Vectors are not bold, and a field's space is in its name, never in its symbol.
+
+- $d$, $N$, $L$: the dimension, the number of points per direction and the length of the periodic domain.
+- $x, y, z$ or $x_i$: the coordinates; $\Delta x = L/N$: the mesh spacing.
+- $n$: an integer wavenumber; $\kappa = 2 \pi n / L$: the wavenumber, with components $\kappa_i$ and magnitude $|\kappa|$; $\kappa_0 = 2 \pi / L$.
+- $t$, $\Delta t$: the time and the time step; $C$: the CFL number.
+- $u$: the velocity; $\omega$: the vorticity; $\theta$: a scalar; $q$: any variable.
+- $\nu$: the viscosity; $\alpha$: a diffusivity.
+- $\langle \cdot \rangle$: the mean over the periodic domain.
