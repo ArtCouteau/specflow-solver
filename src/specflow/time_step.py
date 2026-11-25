@@ -72,7 +72,10 @@ class CFLTimeStep:
         speed = self._speed(mesh, state[self.variable])
         if self._proposed:
             cfl_number = self._time_step * speed
-            self._time_step *= min(self.max_growth, self.target / cfl_number)
+            if cfl_number * self.max_growth > self.target:
+                self._time_step *= self.target / cfl_number
+            else:
+                self._time_step *= self.max_growth
         self._proposed = True
         return self._time_step
 

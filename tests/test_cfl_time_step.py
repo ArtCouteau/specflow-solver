@@ -66,3 +66,41 @@ def test_the_cfl_number_reaches_its_target(tmp_path: Path) -> None:
     assert written[0].time_step == INITIAL
     for snapshot in written[1:]:
         assert math.isclose(cfl_number(mesh, snapshot), TARGET, rel_tol=1e-12)
+
+
+def uniform_flow(mesh: Mesh, velocity: tuple[float, float]) -> dict[str, torch.Tensor]:
+    velocity_physical = torch.tensor(velocity, dtype=mesh.dtype).reshape(2, 1, 1)
+    velocity_physical = velocity_physical.expand(2, *mesh.physical_shape)
+    return {"velocity": mesh.decomposition.to_spectral(velocity_physical)}
+
+
+def test_shortened_steps_never_become_the_controllers_time_step(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    speed = sum(abs(component) for component in MEAN_FLOW) / mesh.spacing
+
+    make_simulation(mesh, Outputs(tmp_path, INTERVAL)).run(
+        uniform_flow(mesh, MEAN_FLOW), 0, 1
+    )
+
+    written = snapshots(mesh, tmp_path)
+    assert [snapshot.time for snapshot in written] == [0.0, 0.25, 0.5, 0.75, 1.0]
+    assert [snapshot.step for snapshot in written] == [0, 22, 29, 36, 43]
+    for snapshot in written:
+        expected = min(INITIAL * 1.2**snapshot.step, TARGET / speed)
+        assert math.isclose(snapshot.time_step, expected, rel_tol=1e-12)
+
+
+def test_a_fluid_at_rest_grows_the_time_step_by_the_maximum_growth(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+
+    make_simulation(mesh, Outputs(tmp_path, INTERVAL)).run(
+        uniform_flow(mesh, (0.0, 0.0)), 0, 0.5
+    )
+
+    for snapshot in snapshots(mesh, tmp_path):
+        expected = INITIAL * 1.2**snapshot.step
+        assert math.isclose(snapshot.time_step, expected, rel_tol=1e-12)
