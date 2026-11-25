@@ -34,7 +34,7 @@ convention = "google"
 "tests/**" = ["D"]
 
 [tool.pyright]
-include = ["src", "tests", "scripts"]
+include = ["src", "tests", "cases", "scripts"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingTypeStubs = "warning"
