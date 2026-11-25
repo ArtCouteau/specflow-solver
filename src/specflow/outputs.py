@@ -111,13 +111,13 @@ class OutputWriter:
             self._check_fresh()
 
     def sample(self, state: State, time: float, step: int) -> None:
-        """Evaluate the diagnostics if ``step`` is a multiple of n, kept on device."""
+        """Buffer copies of the diagnostics on device if ``step`` is a multiple of n."""
         if step % self._outputs.diagnostics_interval:
             return
         self._times.append(time)
         self._steps.append(step)
         for name, diagnostic in self._outputs.diagnostics.items():
-            self._buffers[name].append(diagnostic(state, time))
+            self._buffers[name].append(diagnostic(state, time).clone())
 
     def write(self, state: State, time: float, step: int, time_step: float) -> None:
         """Write the buffered diagnostics, then the snapshot of an output time.

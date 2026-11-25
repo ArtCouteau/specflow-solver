@@ -148,6 +148,23 @@ def test_the_time_series_holds_the_diagnostics_every_n_steps(tmp_path: Path) -> 
     )
 
 
+def test_a_diagnostic_returning_a_view_of_the_state_keeps_its_value(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+
+    def first_mode(state: State, time: float) -> torch.Tensor:
+        return state["velocity"][..., 1].imag
+
+    outputs = Outputs(tmp_path, INTERVAL, {"first mode": first_mode})
+
+    make_simulation(mesh, outputs).run({"velocity": exact_spectral(mesh, 0)}, 0, 1)
+
+    series = read_time_series(tmp_path)
+    expected = [exact_spectral(mesh, t)[..., 1].imag for t in series["time"].tolist()]
+    assert (series["first mode"] - torch.stack(expected)).abs().max().item() <= 1e-14
+
+
 def test_a_snapshot_loads_as_the_state_of_a_restart(tmp_path: Path) -> None:
     mesh = make_mesh()
     simulation = make_simulation(mesh, Outputs(tmp_path / "first", INTERVAL))
