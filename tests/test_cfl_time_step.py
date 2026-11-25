@@ -177,3 +177,21 @@ def test_a_non_finite_cfl_number_raises_with_its_step_and_time() -> None:
 
     with pytest.raises(FloatingPointError, match="CFL number.*step 9, time 0.3375"):
         simulation.run(uniform_flow(mesh, MEAN_FLOW), 0, 1)
+
+
+@pytest.mark.parametrize(
+    ("target", "initial", "max_growth", "message"),
+    [
+        (0.0, INITIAL, 1.2, "target"),
+        (math.inf, INITIAL, 1.2, "target"),
+        (TARGET, -INITIAL, 1.2, "initial time step"),
+        (TARGET, math.nan, 1.2, "initial time step"),
+        (TARGET, INITIAL, 0.9, "max growth"),
+        (TARGET, INITIAL, math.inf, "max growth"),
+    ],
+)
+def test_invalid_cfl_time_step_parameters_raise(
+    target: float, initial: float, max_growth: float, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        CFLTimeStep("velocity", target, initial, max_growth)
