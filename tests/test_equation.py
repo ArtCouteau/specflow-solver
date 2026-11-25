@@ -28,9 +28,15 @@ def assert_close(actual: torch.Tensor, expected: torch.Tensor) -> None:
 
 
 class Source:
-    def __init__(self, variable: str, source_spectral: torch.Tensor) -> None:
+    def __init__(
+        self,
+        variable: str,
+        source_spectral: torch.Tensor,
+        components: tuple[int, ...] = (),
+    ) -> None:
         self.variable = variable
         self.source_spectral = source_spectral
+        self.components = components
 
     @property
     def name(self) -> str:
@@ -38,7 +44,7 @@ class Source:
 
     @property
     def reads(self) -> Mapping[str, tuple[int, ...]]:
-        return {self.variable: tuple(self.source_spectral.shape[:-1])}
+        return {self.variable: self.components}
 
     def contribution(self, state: State, time: float) -> torch.Tensor:
         return self.source_spectral * (1.0 + time) + state[self.variable] ** 2
@@ -75,7 +81,7 @@ def test_contributions_sum_to_the_tendency() -> None:
 def test_projection_applies_to_each_contribution_and_the_nonlinear_tendency() -> None:
     mesh = make_mesh(8, 2)
     velocity_spectral = random_spectral(mesh, 2)
-    source = Source("velocity", random_spectral(mesh, 2, seed=1))
+    source = Source("velocity", random_spectral(mesh, 2, seed=1), (2,))
     diffusion = Diffusion(mesh, "velocity", 0.3, components=(2,))
     equation = Equation("velocity", [diffusion, source], projection=mesh.project)
     state = {"velocity": velocity_spectral}

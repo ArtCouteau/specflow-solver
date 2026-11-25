@@ -1,6 +1,6 @@
 """The evolution law of one variable: a sum of terms, optionally projected."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 import torch
 
@@ -27,7 +27,22 @@ class Equation:
         self.projection = projection
         self._linear_terms = [t for t in self.terms if not isinstance(t, NonlinearTerm)]
         self._nonlinear_terms = [t for t in self.terms if isinstance(t, NonlinearTerm)]
+        self._validate()
+        self.reads = merge_reads(term.reads for term in self.terms)
         self.linear_operator = _sum_multipliers(self._linear_terms)
+
+    def _validate(self) -> None:
+        names: set[str] = set()
+        for term in self.terms:
+            if term.name in names:
+                raise ValueError(f"term name {term.name!r} used twice in an equation")
+            names.add(term.name)
+        for term in self._linear_terms:
+            if set(term.reads) != {self.variable}:
+                raise ValueError(
+                    f"linear term {term.name!r} reads {sorted(term.reads)}, "
+                    f"expected only the variable {self.variable!r}"
+                )
 
     def nonlinear_tendency(
         self, state: State, time: float, out_spectral: torch.Tensor
@@ -53,6 +68,21 @@ class Equation:
                 contribution = self.projection(contribution)
             contributions[term.name] = contribution
         return contributions
+
+
+def merge_reads(
+    reads: Iterable[Mapping[str, tuple[int, ...]]],
+) -> dict[str, tuple[int, ...]]:
+    """Return the union of several ``reads``, raising if two disagree on a shape."""
+    merged: dict[str, tuple[int, ...]] = {}
+    for one in reads:
+        for key, components in one.items():
+            if merged.setdefault(key, components) != components:
+                raise ValueError(
+                    f"terms read {key!r} with component shapes "
+                    f"{merged[key]} and {components}"
+                )
+    return merged
 
 
 def _sum_multipliers(terms: Sequence[LinearTerm]) -> torch.Tensor:
