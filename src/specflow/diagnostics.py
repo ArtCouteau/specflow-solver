@@ -34,7 +34,8 @@ def dissipation(
     r"""Return the dissipation $\nu \langle \partial_j u_i \partial_j u_i \rangle$.
 
     It is exactly minus the energy contribution of diffusion,
-    $\nu \langle u_i \nabla^2 u_i \rangle$, the Nyquist modes included.
+    $\nu \langle u_i \nabla^2 u_i \rangle$, the Nyquist modes included, and equals
+    $2 \nu \langle S_{ij} S_{ij} \rangle$ for a divergence-free velocity.
     """
     return _mean_square(mesh, velocity_spectral, 1, mesh.wavenumbers_squared).mul_(
         viscosity

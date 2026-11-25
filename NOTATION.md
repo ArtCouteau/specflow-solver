@@ -1,18 +1,25 @@
 # Notation
 
-The symbols of Specflow, in the terms of `GLOSSARY.md`. Every symbol in the glossary, the ADRs, the issues and the docstrings is defined here.
+The conventions of the math in Specflow's glossary, ADRs, issues and docstrings. Symbols are the usual ones of fluid dynamics, and any other is defined where it is used.
 
-## Conventions
+## Typography
 
-Math is written in TeX. Repeated indices are summed, $\nabla^2 = \partial_j \partial_j$, and the square of a vector is its squared norm. Vectors are not bold, and a field's space is in its name, never in its symbol.
+- Math is written in TeX, and vectors are not bold.
+- A symbol names the field, not its representation: Python names carry the space (`_spectral`, `_physical`).
 
-## Symbols
+## Indices
 
-- $d$, $N$, $L$: the dimension, the number of points per direction and the length of the periodic domain.
-- $x, y, z$ or $x_i$: the coordinates; $\Delta x = L/N$: the mesh spacing.
-- $n$: an integer wavenumber; $\kappa = 2 \pi n / L$: the wavenumber, with components $\kappa_i$ and magnitude $|\kappa|$; $\kappa_0 = 2 \pi / L$.
-- $t$, $\Delta t$: the time and the time step; $C$: the CFL number.
-- $u$: the velocity; $\omega$: the vorticity; $\theta$: a scalar; $q$: any variable.
-- $S_{ij} = (\partial_i u_j + \partial_j u_i) / 2$: the strain rate.
-- $\nu$: the viscosity; $\alpha$: a diffusivity.
-- $\langle \cdot \rangle$: the mean over the periodic domain.
+- $i$ and $j$ run over the $d$ directions, and a repeated index is summed.
+- A component may be labelled by its coordinate instead, as in $u_x$.
+- $\partial_j = \partial / \partial x_j$ and $\nabla^2 = \partial_j \partial_j$.
+- The square of a vector is its squared norm, and $|\cdot|$ is a magnitude.
+
+## Wavenumbers
+
+- Wavenumbers are dimensional: $\kappa = 2 \pi n / L$, with $n$ the integer wavenumber.
+- $\hat f(\kappa)$ is a Fourier coefficient of $f$, normalized by the mean: $\hat f(\kappa) = \langle f \, e^{-i \kappa_j x_j} \rangle$, so that $f = \sum_n \hat f(\kappa) \, e^{i \kappa_j x_j}$ and $\langle |f|^2 \rangle = \sum_n |\hat f(\kappa)|^2$. A hat appears only in a formula about the coefficients.
+
+## Averages
+
+- $\langle \cdot \rangle$ is the mean over the periodic domain, and $\max$ the maximum over the mesh points.
+- $\|f\| = \langle |f|^2 \rangle^{1/2}$.

@@ -99,7 +99,7 @@ A quantity derived from the state for monitoring or analysis, such as kinetic en
 _Avoid_: statistic, observable, quantity
 
 **Dissipation**:
-The rate at which kinetic energy is lost to viscosity, $2 \nu \langle S_{ij} S_{ij} \rangle$. A diagnostic, not a term.
+The rate at which kinetic energy is lost to viscosity, $2 \nu \langle S_{ij} S_{ij} \rangle$, with $S_{ij}$ the strain rate. A diagnostic, not a term.
 _Avoid_: diffusion
 
 **Budget**:
