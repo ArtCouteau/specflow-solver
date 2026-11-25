@@ -30,3 +30,25 @@ def diffusion_1d_physical(
             torch.sin(wavenumber * position), alpha=amplitude * decay
         )
     return solution_physical
+
+
+def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch.Tensor:
+    """Return the decaying 2D Taylor–Green vortex, (2, N, N).
+
+    The velocity is (sin k₀x cos k₀y, −cos k₀x sin k₀y) exp(−2νk₀²t), with k₀ = 2π/L;
+    at t = 0 it is the initial condition.
+
+    Args:
+        mesh: A 2D mesh.
+        viscosity: ν.
+        time: t.
+    """
+    if mesh.dimension != 2:
+        raise ValueError(f"2D Taylor–Green needs a 2D mesh, got {mesh.dimension}D")
+    wavenumber = 2 * math.pi / mesh.length
+    decay = math.exp(-2 * viscosity * wavenumber**2 * time)
+    x, y = mesh.coordinates.mul(wavenumber)
+    velocity_physical = torch.stack(
+        [torch.sin(x) * torch.cos(y), torch.cos(x) * torch.sin(y).neg_()]
+    )
+    return velocity_physical.mul_(decay)

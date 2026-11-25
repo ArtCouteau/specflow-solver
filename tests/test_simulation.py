@@ -182,3 +182,42 @@ def test_a_fixed_time_step_that_is_not_positive_and_finite_raises(
 ) -> None:
     with pytest.raises(ValueError, match="time step"):
         FixedTimeStep(value)
+
+
+def gradient_velocity_spectral(mesh: Mesh) -> torch.Tensor:
+    x, y = mesh.coordinates
+    potential_physical = torch.sin(x) * torch.cos(2 * y)
+    return mesh.gradient(mesh.decomposition.to_spectral(potential_physical))
+
+
+def test_an_initial_state_that_is_not_divergence_free_raises() -> None:
+    mesh = make_mesh(2)
+    equation = Equation("velocity", [], projection=mesh.project)
+    simulation = make_simulation(mesh, [equation])
+    velocity_spectral = gradient_velocity_spectral(mesh)
+    solenoidal_spectral = mesh.project(velocity_spectral.flip(-3))
+    state = {"velocity": solenoidal_spectral + 1e-6 * velocity_spectral}
+
+    with pytest.raises(ValueError, match="velocity.*divergence-free"):
+        simulation.run(state, 0.0, 0.1)
+
+
+def test_a_divergence_free_initial_state_runs() -> None:
+    mesh = make_mesh(2)
+    equation = Equation("velocity", [], projection=mesh.project)
+    simulation = make_simulation(mesh, [equation])
+    velocity_spectral = mesh.project(gradient_velocity_spectral(mesh).flip(-3))
+
+    final = simulation.run({"velocity": velocity_spectral}, 0.0, 0.1)
+
+    assert torch.equal(final["velocity"], velocity_spectral)
+
+
+def test_an_unprojected_variable_need_not_be_divergence_free() -> None:
+    mesh = make_mesh(2)
+    simulation = make_simulation(mesh, [Equation("velocity", [])])
+    velocity_spectral = gradient_velocity_spectral(mesh)
+
+    final = simulation.run({"velocity": velocity_spectral}, 0.0, 0.1)
+
+    assert torch.equal(final["velocity"], velocity_spectral)
