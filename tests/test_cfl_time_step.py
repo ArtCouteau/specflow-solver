@@ -1,3 +1,4 @@
+import logging
 import math
 from collections.abc import Mapping
 from pathlib import Path
@@ -70,17 +71,37 @@ def test_the_cfl_number_reaches_its_target(tmp_path: Path) -> None:
         assert math.isclose(cfl_number(mesh, snapshot), TARGET, rel_tol=1e-12)
 
 
+def test_each_info_line_holds_the_cfl_number(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    mesh = make_mesh()
+    simulation = make_simulation(mesh, Outputs(tmp_path, INTERVAL))
+
+    with caplog.at_level(logging.INFO, logger="specflow"):
+        simulation.run(taylor_green_with_mean_flow(mesh), 0, 1)
+
+    written = snapshots(mesh, tmp_path)
+    info = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert len(info) == len(written)
+    for message, snapshot in zip(info, written, strict=True):
+        assert f"CFL {cfl_number(mesh, snapshot):.3g}," in message
+
+
 def uniform_flow(mesh: Mesh, velocity: tuple[float, float]) -> dict[str, torch.Tensor]:
     velocity_physical = torch.tensor(velocity, dtype=mesh.dtype).reshape(2, 1, 1)
     velocity_physical = velocity_physical.expand(2, *mesh.physical_shape)
     return {"velocity": mesh.decomposition.to_spectral(velocity_physical)}
 
 
+def mean_flow_speed(mesh: Mesh) -> float:
+    return sum(abs(component) for component in MEAN_FLOW) / mesh.spacing
+
+
 def test_shortened_steps_never_become_the_controllers_time_step(
     tmp_path: Path,
 ) -> None:
     mesh = make_mesh()
-    speed = sum(abs(component) for component in MEAN_FLOW) / mesh.spacing
+    speed = mean_flow_speed(mesh)
 
     make_simulation(mesh, Outputs(tmp_path, INTERVAL)).run(
         uniform_flow(mesh, MEAN_FLOW), 0, 1
@@ -149,7 +170,7 @@ class BlowingUp:
 
 def test_a_non_finite_cfl_number_raises_with_its_step_and_time() -> None:
     mesh = make_mesh()
-    speed = sum(abs(component) for component in MEAN_FLOW) / mesh.spacing
+    speed = mean_flow_speed(mesh)
     equation = Equation("velocity", [BlowingUp(after=0.31)], projection=mesh.project)
     time_step = CFLTimeStep("velocity", TARGET, TARGET / speed)
     simulation = Simulation(mesh, [equation], IFRK4(), time_step)

@@ -159,11 +159,14 @@ class Simulation:
             if writer is not None:
                 writer.write(state, time, step, proposed)
                 wall = clock.perf_counter()
+                cfl_number = self.time_step.cfl_number
+                cfl = "" if cfl_number is None else f"CFL {cfl_number:.3g}, "
                 logger.info(
-                    "step %d, time %.6g, Δt %.6g, %.3g s per step",
+                    "step %d, time %.6g, Δt %.6g, %s%.3g s per step",
                     step,
                     time,
                     proposed,
+                    cfl,
                     (wall - wall_start) / max(step - step_start, 1),
                 )
                 wall_start, step_start = wall, step
