@@ -1,20 +1,30 @@
 """The time integration of a set of equations from an initial state."""
 
-from collections.abc import Sequence
+import logging
+import time as clock
+from collections.abc import Iterator, Sequence
 
 import torch
 
 from specflow.equation import Equation, merge_reads
 from specflow.integrators import Integrator, Stepper
 from specflow.mesh import Mesh
+from specflow.outputs import Outputs, OutputWriter
 from specflow.terms import State
 from specflow.time_step import TimeStepController
 
 LANDING_TOLERANCE = 1e-10
 
+logger = logging.getLogger(__name__)
+
 
 class Simulation:
-    """Equations advanced by an integrator, with Δt from a time-step controller."""
+    """Equations advanced by an integrator, with Δt from a time-step controller.
+
+    With outputs, the output times are the start, every snapshot interval after it,
+    and the end; steps are shortened to land on them exactly. The controller proposes
+    Δt once per state reached, and a snapshot stores the Δt proposed from its state.
+    """
 
     def __init__(
         self,
@@ -22,11 +32,13 @@ class Simulation:
         equations: Sequence[Equation],
         integrator: Integrator,
         time_step: TimeStepController,
+        outputs: Outputs | None = None,
     ) -> None:
         self.mesh = mesh
         self.equations = tuple(equations)
         self.integrator = integrator
         self.time_step = time_step
+        self.outputs = outputs
         self._components = self._check_consistency()
 
     def run(self, state: State, start: float, end: float) -> dict[str, torch.Tensor]:
@@ -41,7 +53,14 @@ class Simulation:
         with torch.inference_mode():
             owned = {key: tensor.clone() for key, tensor in state.items()}
             stepper = self.integrator.start(self.equations, owned)
-            self._advance(stepper, owned, start, end)
+            if self.outputs is None:
+                self._integrate(stepper, owned, start, [end], None)
+            else:
+                writer = self.outputs.open(self.mesh, start)
+                stops = _output_times(
+                    start, end, self.outputs.snapshot_interval, writer.resumed
+                )
+                self._integrate(stepper, owned, start, stops, writer)
         return owned
 
     def _check_consistency(self) -> dict[str, tuple[int, ...] | None]:
@@ -90,20 +109,52 @@ class Simulation:
                 f"expected {mesh.wavenumbers.device}"
             )
 
-    def _advance(
-        self, stepper: Stepper, state: State, time: float, stop: float
-    ) -> float:
-        """Advance the state to a stop time, shortening only the step that lands on it.
+    def _integrate(
+        self,
+        stepper: Stepper,
+        state: State,
+        start: float,
+        stops: Iterator[float] | Sequence[float],
+        writer: OutputWriter | None,
+    ) -> None:
+        time = start
+        step = 0 if writer is None else writer.step
+        proposed = self.time_step.propose(self.mesh, state)
+        wall_start, step_start = clock.perf_counter(), step
+        if writer is not None and not writer.resumed:
+            writer.sample(state, time, step)
+        for stop in stops:
+            while time < stop:
+                if stop - time <= proposed * (1 + LANDING_TOLERANCE):
+                    stepper.step(time, stop - time)
+                    time = stop
+                else:
+                    stepper.step(time, proposed)
+                    time += proposed
+                step += 1
+                logger.debug("step %d, time %.6g, Δt %.6g", step, time, proposed)
+                if writer is not None:
+                    writer.sample(state, time, step)
+                proposed = self.time_step.propose(self.mesh, state)
+            if writer is not None:
+                writer.write(state, time, step, proposed)
+                wall = clock.perf_counter()
+                logger.info(
+                    "step %d, time %.6g, Δt %.6g, %.3g s per step",
+                    step,
+                    time,
+                    proposed,
+                    (wall - wall_start) / max(step - step_start, 1),
+                )
+                wall_start, step_start = wall, step
 
-        Returns:
-            The stop time, reached exactly.
-        """
-        while time < stop:
-            proposed = self.time_step.propose(self.mesh, state)
-            if stop - time <= proposed * (1 + LANDING_TOLERANCE):
-                stepper.step(time, stop - time)
-                time = stop
-            else:
-                stepper.step(time, proposed)
-                time += proposed
-        return time
+
+def _output_times(
+    start: float, end: float, interval: float, resumed: bool
+) -> Iterator[float]:
+    index = 1 if resumed else 0
+    while end - (start + index * interval) > LANDING_TOLERANCE * interval:
+        yield start + index * interval
+        index += 1
+    if end > start or not resumed:
+        yield end
