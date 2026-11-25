@@ -111,3 +111,17 @@ def test_diagnostics_keep_the_leading_axes_on_the_device() -> None:
     assert energy.dtype == mesh.dtype
     assert energy.device == mesh.wavenumbers.device
     assert energy.tolist() == pytest.approx([0.25, 1.0], rel=1e-14)
+
+
+@pytest.mark.parametrize("dimension", [2, 3])
+def test_the_fluctuation_kinetic_energy_ignores_a_uniform_mean(dimension: int) -> None:
+    mesh = make_mesh(dimension)
+    velocity_spectral = taylor_green_spectral(mesh)
+    shifted_spectral = velocity_spectral.clone()
+    shifted_spectral[(..., *mesh.dimension * (0,))] += 0.3
+
+    fluctuation = diagnostics.fluctuation_kinetic_energy(mesh, shifted_spectral)
+
+    expected = diagnostics.kinetic_energy(mesh, velocity_spectral)
+    assert fluctuation.item() == pytest.approx(expected.item(), rel=1e-14)
+    assert diagnostics.kinetic_energy(mesh, shifted_spectral) > fluctuation
