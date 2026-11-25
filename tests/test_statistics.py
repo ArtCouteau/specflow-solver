@@ -289,3 +289,46 @@ def test_a_block_length_below_one_raises(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="block length"):
         window_statistic(tmp_path / "run", tmp_path / "average.h5", 0, 1, 0)
+
+
+def test_a_window_without_a_snapshot_of_a_run_with_sampled_diagnostics_raises(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    run(mesh, spectrum_outputs(mesh, tmp_path / "run"), 1)
+    statistic = tmp_path / "time_average.h5"
+
+    with pytest.raises(ValueError, match="0 snapshot samples"):
+        window_statistic(tmp_path / "run", statistic, 0.26, 0.49, block_length=1)
+
+    assert not statistic.exists()
+
+
+def test_snapshots_with_sampled_diagnostics_of_other_shapes_raise(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+
+    def growing(state: State, time: float) -> torch.Tensor:
+        return torch.zeros(round(time / INTERVAL) + 1, dtype=torch.float64)
+
+    run(mesh, Outputs(tmp_path / "run", INTERVAL, sampled={"growing": growing}), 1)
+    statistic = tmp_path / "time_average.h5"
+
+    with pytest.raises(ValueError, match="growing"):
+        window_statistic(tmp_path / "run", statistic, 0, 1, block_length=1)
+
+    assert not statistic.exists()
+
+
+def test_snapshots_with_other_sampled_diagnostics_raise(tmp_path: Path) -> None:
+    mesh = make_mesh()
+    run(mesh, spectrum_outputs(mesh, tmp_path / "run"), 1)
+    with h5py.File(tmp_path / "run" / "snapshot_000002.h5", "a") as snapshot:
+        del snapshot["diagnostics/dissipation"]
+    statistic = tmp_path / "time_average.h5"
+
+    with pytest.raises(ValueError, match="dissipation"):
+        window_statistic(tmp_path / "run", statistic, 0, 1, block_length=1)
+
+    assert not statistic.exists()

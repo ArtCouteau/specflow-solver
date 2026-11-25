@@ -654,6 +654,7 @@ def test_only_rank_0_writes(tmp_path: Path) -> None:
         (INTERVAL, 0, "energy", "diagnostics interval"),
         (INTERVAL, 1, "time", "reserved"),
         (INTERVAL, 1, "step", "reserved"),
+        (INTERVAL, 1, "energy/total", "'/'"),
     ],
 )
 def test_invalid_outputs_raise(
@@ -672,6 +673,7 @@ def test_invalid_outputs_raise(
         ("energy", "time series"),
         ("time", "reserved"),
         ("step", "reserved"),
+        ("energy/spectrum", "'/'"),
     ],
 )
 def test_invalid_sampled_names_raise(tmp_path: Path, name: str, match: str) -> None:

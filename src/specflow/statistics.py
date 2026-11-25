@@ -52,8 +52,10 @@ def window_statistic(
     Raises:
         FileExistsError: The time-average file exists.
         FileNotFoundError: The directory holds no snapshot.
-        ValueError: The block length is below 1, or a source with diagnostics
-            holds fewer than two blocks in the window; nothing is written.
+        ValueError: The block length is below 1, a snapshot of the window holds
+            other sampled diagnostics or shapes than the first snapshot, or a
+            source with diagnostics holds fewer than two blocks in the window;
+            nothing is written.
     """
     directory, path = Path(directory), Path(path)
     if block_length < 1:
@@ -65,14 +67,16 @@ def window_statistic(
         raise FileNotFoundError(f"{directory} holds no snapshot")
     with h5py.File(paths[0], "r") as first:
         mesh = {name: first.attrs[name] for name in MESH_ATTRIBUTES}
-    snapshots, snapshot_count, shells = _snapshot_samples(paths, start, end)
+        layout = _layout(_datasets(first, "diagnostics"))
+    snapshots, snapshot_count, shells = _snapshot_samples(paths, start, end, layout)
     series, series_count = _time_series_samples(
         directory / TIME_SERIES_NAME, start, end
     )
     sources = {"snapshot": snapshots, "time series": series}
     counts = {"snapshot": snapshot_count, "time series": series_count}
-    for source, samples in sources.items():
-        if samples and counts[source] // block_length < 2:
+    held = {"snapshot": bool(layout), "time series": bool(series)}
+    for source in sources:
+        if held[source] and counts[source] // block_length < 2:
             raise ValueError(
                 f"the window [{start}, {end}] holds {counts[source]} {source} "
                 f"samples, fewer than two blocks of {block_length}"
@@ -102,7 +106,10 @@ def window_statistic(
 
 
 def _snapshot_samples(
-    paths: list[Path], start: float, end: float
+    paths: list[Path],
+    start: float,
+    end: float,
+    layout: dict[str, tuple[int, ...]],
 ) -> tuple[dict[str, torch.Tensor], int, dict[str, torch.Tensor]]:
     samples: dict[str, list[torch.Tensor]] = {}
     shells: dict[str, torch.Tensor] = {}
@@ -112,7 +119,14 @@ def _snapshot_samples(
             if not start <= _number(snapshot.attrs, "time") <= end:
                 continue
             count += 1
-            for name, values in _datasets(snapshot, "diagnostics").items():
+            diagnostics = _datasets(snapshot, "diagnostics")
+            found = _layout(diagnostics)
+            if found != layout:
+                raise ValueError(
+                    f"{path} holds the sampled diagnostics {found}, "
+                    f"expected {layout} as in the first snapshot"
+                )
+            for name, values in diagnostics.items():
                 samples.setdefault(name, []).append(values)
             if not shells:
                 shells = _datasets(snapshot, "shells")
@@ -146,6 +160,10 @@ def _datasets(file: h5py.File, group_name: str) -> dict[str, torch.Tensor]:
             raise ValueError(f"{file.filename} entry {name!r} is not a dataset")
         datasets[str(name)] = torch.as_tensor(dataset[()])
     return datasets
+
+
+def _layout(datasets: dict[str, torch.Tensor]) -> dict[str, tuple[int, ...]]:
+    return {name: tuple(values.shape) for name, values in datasets.items()}
 
 
 def _mean_and_standard_error(
