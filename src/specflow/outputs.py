@@ -118,7 +118,7 @@ class OutputWriter:
         self._outputs = outputs
         self._mesh = mesh
         self._writes = mesh.decomposition.rank == 0
-        self._commit = _commit()
+        self._commit = code_commit()
         self._time_series = outputs.path / TIME_SERIES_NAME
         self._shells = Shells(mesh) if outputs.sampled else None
         self._times: list[float] = []
@@ -353,10 +353,15 @@ def _snapshot_path(directory: Path, index: int) -> Path:
 
 
 def _latest_snapshot_path(directory: Path) -> Path:
-    indices = _snapshot_indices(directory)
-    if not indices:
+    paths = snapshot_paths(directory)
+    if not paths:
         raise FileNotFoundError(f"{directory} holds no snapshot to resume from")
-    return _snapshot_path(directory, indices[-1])
+    return paths[-1]
+
+
+def snapshot_paths(directory: Path) -> list[Path]:
+    """Return the snapshots of a directory, in the order of their indices."""
+    return [_snapshot_path(directory, index) for index in _snapshot_indices(directory)]
 
 
 def _snapshot_indices(directory: Path) -> list[int]:
@@ -364,7 +369,8 @@ def _snapshot_indices(directory: Path) -> list[int]:
     return sorted(int(match[1]) for match in matches if match)
 
 
-def _commit() -> str:
+def code_commit() -> str:
+    """Return the commit of the code, or an empty string outside a git checkout."""
     package = Path(__file__).resolve().parent
     try:
         result = subprocess.run(
