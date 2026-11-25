@@ -33,7 +33,7 @@ def kinetic_energy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
 def dissipation(
     mesh: Mesh, velocity_spectral: torch.Tensor, viscosity: float
 ) -> torch.Tensor:
-    """Return the dissipation ν⟨∂ⱼuᵢ∂ⱼuᵢ⟩, as −ν⟨u·∇²u⟩.
+    """Return the dissipation v⟨∂ⱼuᵢ∂ⱼuᵢ⟩, as -v⟨u·∇²u⟩.
 
     Built on the exact k² of the Laplacian, so that it is minus the energy
     contribution of diffusion.
@@ -63,7 +63,7 @@ def relative_error(
     reference_spectral: torch.Tensor,
     component_axes: int = 0,
 ) -> torch.Tensor:
-    """Return the relative L2 error ‖f − r‖/‖r‖ of a field against a reference.
+    """Return the relative L2 error ‖f - r‖/‖r‖ of a field against a reference.
 
     Args:
         mesh: The mesh of both fields.

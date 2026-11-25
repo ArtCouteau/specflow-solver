@@ -1,4 +1,4 @@
-"""Fourth-order Runge–Kutta integrators over a sequence of equations.
+"""Fourth-order Runge-Kutta integrators over a sequence of equations.
 
 An integrator starts a stepper on a state; the stepper owns the state's tensors and
 three stage buffers per variable, allocated once, and advances the state in place.

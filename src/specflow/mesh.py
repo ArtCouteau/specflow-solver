@@ -106,7 +106,7 @@ class Mesh:
         return algebra.cross_2d(self.derivative_wavenumbers, velocity_spectral).mul_(1j)
 
     def curl_3d(self, velocity_spectral: torch.Tensor) -> torch.Tensor:
-        """Return the vorticity vector ∇ × u of a 3D vector field."""
+        """Return the vorticity vector ∇ x u of a 3D vector field."""
         if self.dimension != 3:
             raise ValueError(f"curl_3d needs a 3D mesh, got {self.dimension}D")
         return algebra.cross_3d(self.derivative_wavenumbers, velocity_spectral).mul_(1j)

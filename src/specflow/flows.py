@@ -11,7 +11,7 @@ from specflow.mesh import Mesh
 def diffusion_1d_physical(
     mesh: Mesh, amplitudes: Mapping[int, float], diffusivity: float, time: float
 ) -> torch.Tensor:
-    """Return the exact solution Σₙ aₙ sin(kₙx) exp(−κkₙ²t) of 1D diffusion, (N,).
+    """Return the exact solution Σₙ aₙ sin(kₙx) exp(-κkₙ²t) of 1D diffusion, (N,).
 
     Args:
         mesh: A 1D mesh.
@@ -33,18 +33,18 @@ def diffusion_1d_physical(
 
 
 def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch.Tensor:
-    """Return the decaying 2D Taylor–Green vortex, (2, N, N).
+    """Return the decaying 2D Taylor-Green vortex, (2, N, N).
 
-    The velocity is (sin k₀x cos k₀y, −cos k₀x sin k₀y) exp(−2νk₀²t), with k₀ = 2π/L;
+    The velocity is (sin k₀x cos k₀y, -cos k₀x sin k₀y) exp(-2vk₀²t), with k₀ = 2π/L;
     at t = 0 it is the initial condition.
 
     Args:
         mesh: A 2D mesh.
-        viscosity: ν.
+        viscosity: v.
         time: t.
     """
     if mesh.dimension != 2:
-        raise ValueError(f"2D Taylor–Green needs a 2D mesh, got {mesh.dimension}D")
+        raise ValueError(f"2D Taylor-Green needs a 2D mesh, got {mesh.dimension}D")
     wavenumber = 2 * math.pi / mesh.length
     decay = math.exp(-2 * viscosity * wavenumber**2 * time)
     x, y = mesh.coordinates.mul(wavenumber)
@@ -55,13 +55,13 @@ def taylor_green_2d_physical(mesh: Mesh, viscosity: float, time: float) -> torch
 
 
 def taylor_green_3d_physical(mesh: Mesh) -> torch.Tensor:
-    """Return the initial 3D Taylor–Green vortex, (3, N, N, N).
+    """Return the initial 3D Taylor-Green vortex, (3, N, N, N).
 
-    The velocity is (sin k₀x cos k₀y cos k₀z, −cos k₀x sin k₀y cos k₀z, 0), with
+    The velocity is (sin k₀x cos k₀y cos k₀z, -cos k₀x sin k₀y cos k₀z, 0), with
     k₀ = 2π/L.
     """
     if mesh.dimension != 3:
-        raise ValueError(f"3D Taylor–Green needs a 3D mesh, got {mesh.dimension}D")
+        raise ValueError(f"3D Taylor-Green needs a 3D mesh, got {mesh.dimension}D")
     x, y, z = mesh.coordinates.mul(2 * math.pi / mesh.length)
     cos_z = torch.cos(z)
     velocity_physical = torch.zeros_like(mesh.coordinates)
