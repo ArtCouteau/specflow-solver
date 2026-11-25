@@ -1,0 +1,3 @@
+# The tendency is a pure function of the state
+
+Equations compute their tendency from the state passed in, `(state, time) -> tendency`, and terms never keep a reference to the state's tensors; the integrator owns the buffers. On `add-tensor-wrappers`, terms bound the solution tensor at construction and the integrator overwrote it in place at every stage, which made integrating-factor schemes, step rejection, testing one term and post-processing a stored snapshot awkward. A stateful term, such as forcing, keeps its own term state, frozen over the stages of a step and advanced once after it, so the tendency stays pure within a step; the v1 code instead advanced its forcing at every new stage time.
