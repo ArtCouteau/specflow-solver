@@ -12,8 +12,10 @@ type Projection = Callable[[torch.Tensor], torch.Tensor]
 class Equation:
     """The tendency of one variable: its linear operator plus its nonlinear tendency.
 
-    Only the nonlinear tendency and the contributions are projected; the linear
-    operator commutes with the projection.
+    ``linear_operator`` is the sum of the linear terms' multipliers,
+    (*spectral_shape), or a zero scalar without linear terms. Only the nonlinear
+    tendency and the contributions are projected; the linear operator commutes with
+    the projection. ``reads`` merges the terms' ``reads``.
     """
 
     def __init__(

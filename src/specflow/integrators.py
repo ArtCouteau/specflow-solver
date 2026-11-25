@@ -60,8 +60,8 @@ class _RungeKutta4Stepper:
         self._equations = tuple(equations)
         self._state = state
         self._integrating_factor = integrating_factor
-        self._variables = [equation.variable for equation in self._equations]
-        variables = self._variables
+        variables = [equation.variable for equation in self._equations]
+        self._variables = variables
         self._stage = {v: torch.empty_like(state[v]) for v in variables}
         self._slope = {v: torch.empty_like(state[v]) for v in variables}
         self._total = {v: torch.empty_like(state[v]) for v in variables}

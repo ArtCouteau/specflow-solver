@@ -93,12 +93,17 @@ class Simulation:
     def _advance(
         self, stepper: Stepper, state: State, time: float, stop: float
     ) -> float:
+        """Advance the state to a stop time, shortening only the step that lands on it.
+
+        Returns:
+            The stop time, reached exactly.
+        """
         while time < stop:
-            time_step = self.time_step.propose(self.mesh, state)
-            if stop - time <= time_step * (1 + LANDING_TOLERANCE):
+            proposed = self.time_step.propose(self.mesh, state)
+            if stop - time <= proposed * (1 + LANDING_TOLERANCE):
                 stepper.step(time, stop - time)
                 time = stop
             else:
-                stepper.step(time, time_step)
-                time += time_step
+                stepper.step(time, proposed)
+                time += proposed
         return time
