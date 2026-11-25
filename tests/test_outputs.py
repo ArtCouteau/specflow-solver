@@ -490,6 +490,8 @@ def test_only_rank_0_writes(tmp_path: Path) -> None:
     ("interval", "diagnostics_interval", "name", "match"),
     [
         (0.0, 1, "energy", "snapshot interval"),
+        (math.inf, 1, "energy", "snapshot interval"),
+        (math.nan, 1, "energy", "snapshot interval"),
         (INTERVAL, 0, "energy", "diagnostics interval"),
         (INTERVAL, 1, "time", "reserved"),
         (INTERVAL, 1, "step", "reserved"),

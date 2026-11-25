@@ -12,6 +12,7 @@ rows. Fields go through the decomposition's gather and scatter, only rank 0
 writes, and nothing is ever deleted or overwritten.
 """
 
+import math
 import subprocess
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -61,9 +62,10 @@ class Outputs:
         diagnostics_interval: int = 1,
         resume: bool = False,
     ) -> None:
-        if not snapshot_interval > 0:
+        if not (math.isfinite(snapshot_interval) and snapshot_interval > 0):
             raise ValueError(
-                f"snapshot interval must be positive, got {snapshot_interval}"
+                f"snapshot interval must be positive and finite, "
+                f"got {snapshot_interval}"
             )
         if diagnostics_interval < 1:
             raise ValueError(
