@@ -1,6 +1,9 @@
 import logging
 import math
+import os
+import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -8,6 +11,7 @@ import h5py
 import pytest
 import torch
 
+import specflow
 from specflow import diagnostics, flows
 from specflow.decomposition import SerialDecomposition
 from specflow.equation import Equation
@@ -415,6 +419,51 @@ def test_the_code_commit_is_empty_without_git(
 
     make_simulation(mesh, Outputs(tmp_path, INTERVAL)).run(
         {"velocity": exact_spectral(mesh, 0)}, 0, 0
+    )
+
+    assert commit_of(tmp_path / "snapshot_000000.h5", mesh) == ""
+
+
+OUTER_RUN = """
+import sys
+from pathlib import Path
+
+import specflow
+from specflow.decomposition import SerialDecomposition
+from specflow.equation import Equation
+from specflow.integrators import IFRK4
+from specflow.mesh import Mesh
+from specflow.outputs import Outputs
+from specflow.simulation import Simulation
+from specflow.terms import Diffusion
+from specflow.time_step import FixedTimeStep
+
+assert Path(specflow.__file__).is_relative_to(sys.argv[2])
+mesh = Mesh(8, 1.0, 1, SerialDecomposition(8, 1))
+equation = Equation("scalar", [Diffusion(mesh, "scalar", 0.1)])
+simulation = Simulation(
+    mesh, [equation], IFRK4(), FixedTimeStep(0.1), Outputs(sys.argv[1], 1.0)
+)
+simulation.run({"scalar": mesh.decomposition.to_spectral(mesh.coordinates[0])}, 0, 0)
+"""
+
+
+def test_the_code_commit_is_empty_inside_another_repository(tmp_path: Path) -> None:
+    mesh = make_mesh()
+    outer = tmp_path / "outer"
+    packages = outer / "site-packages"
+    shutil.copytree(Path(specflow.__file__).parent, packages / "specflow")
+    git = ["git", "-c", "user.name=outer", "-c", "user.email=outer@example.com"]
+    git += ["-c", "commit.gpgsign=false"]
+    subprocess.run([*git, "init", "-q"], cwd=outer, check=True)
+    subprocess.run(
+        [*git, "commit", "-q", "--allow-empty", "-m", "outer"], cwd=outer, check=True
+    )
+
+    subprocess.run(
+        [sys.executable, "-c", OUTER_RUN, tmp_path, packages],
+        env={**os.environ, "PYTHONPATH": str(packages)},
+        check=True,
     )
 
     assert commit_of(tmp_path / "snapshot_000000.h5", mesh) == ""

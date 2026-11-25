@@ -3,13 +3,13 @@
 Snapshots are named by a zero-padded index, ``snapshot_000000.h5``, and hold the
 spectral state under ``state/<key>`` with the metadata as attributes: ``time``,
 ``step``, ``time_step`` (the controller's Δt proposed from the snapshot's state),
-``points``, ``length``, ``dimension``, ``dtype`` and ``commit`` (empty outside a
-git checkout). The time series, ``time_series.h5``, created with the first
-snapshot, holds one resizable dataset each for ``time``, ``step`` and every
-diagnostic, with one row per evaluation up to the latest snapshot's step: each
-output time writes its snapshot before its rows. Fields go through the
-decomposition's gather and scatter, only rank 0 writes, and nothing is ever
-deleted or overwritten.
+``points``, ``length``, ``dimension``, ``dtype`` and ``commit`` (empty unless the
+package is the ``src/specflow`` of a git checkout). The time series,
+``time_series.h5``, created with the first snapshot, holds one resizable dataset
+each for ``time``, ``step`` and every diagnostic, with one row per evaluation up
+to the latest snapshot's step: each output time writes its snapshot before its
+rows. Fields go through the decomposition's gather and scatter, only rank 0
+writes, and nothing is ever deleted or overwritten.
 """
 
 import subprocess
@@ -313,14 +313,20 @@ def _snapshot_indices(directory: Path) -> list[int]:
 
 
 def _commit() -> str:
+    package = Path(__file__).resolve().parent
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).parent,
+            ["git", "rev-parse", "--show-toplevel", "HEAD"],
+            cwd=package,
             capture_output=True,
             text=True,
             check=False,
         )
     except OSError:
         return ""
-    return result.stdout.strip() if result.returncode == 0 else ""
+    if result.returncode != 0:
+        return ""
+    toplevel, commit = result.stdout.split()
+    if Path(toplevel).resolve() / "src" / "specflow" != package:
+        return ""
+    return commit
