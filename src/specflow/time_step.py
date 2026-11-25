@@ -21,6 +21,11 @@ class TimeStepController(Protocol):
         """Return the controller's Δt for the next step from the current state."""
         ...
 
+    @property
+    def cfl_number(self) -> float | None:
+        """The CFL number of the last proposal at its state, or None."""
+        ...
+
 
 @dataclass(frozen=True)
 class FixedTimeStep:
@@ -35,6 +40,11 @@ class FixedTimeStep:
     def propose(self, mesh: Mesh, state: State) -> float:
         """Return the prescribed Δt."""
         return self.value
+
+    @property
+    def cfl_number(self) -> None:
+        """None, since a fixed Δt reads no velocity."""
+        return None
 
 
 class CFLTimeStep:
@@ -65,18 +75,23 @@ class CFLTimeStep:
         self.target = target
         self.max_growth = max_growth
         self._time_step = initial
-        self._proposed = False
+        self._cfl_number: float | None = None
+
+    @property
+    def cfl_number(self) -> float | None:
+        """The CFL number of the last proposal at its state, None before the first."""
+        return self._cfl_number
 
     def propose(self, mesh: Mesh, state: State) -> float:
         """Return the controller's Δt for the next step from the current state."""
         speed = self._speed(mesh, state[self.variable])
-        if self._proposed:
+        if self._cfl_number is not None:
             cfl_number = self._time_step * speed
             if cfl_number * self.max_growth > self.target:
                 self._time_step *= self.target / cfl_number
             else:
                 self._time_step *= self.max_growth
-        self._proposed = True
+        self._cfl_number = self._time_step * speed
         return self._time_step
 
     def _speed(self, mesh: Mesh, velocity_spectral: torch.Tensor) -> float:

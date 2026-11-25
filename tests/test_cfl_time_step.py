@@ -1,6 +1,8 @@
 import math
+from collections.abc import Mapping
 from pathlib import Path
 
+import pytest
 import torch
 
 from specflow import flows
@@ -11,7 +13,7 @@ from specflow.integrators import IFRK4
 from specflow.mesh import Mesh
 from specflow.outputs import Outputs, Snapshot, load_snapshot
 from specflow.simulation import Simulation
-from specflow.terms import Advection, Diffusion
+from specflow.terms import Advection, Diffusion, State
 from specflow.time_step import CFLTimeStep
 
 POINTS = 16
@@ -126,3 +128,31 @@ def test_a_resumed_run_reproduces_the_uninterrupted_run(tmp_path: Path) -> None:
         (s.time, s.step, s.time_step) for s in whole
     ]
     assert torch.equal(final["velocity"], whole[-1].state["velocity"])
+
+
+class BlowingUp:
+    def __init__(self, after: float) -> None:
+        self.after = after
+
+    @property
+    def name(self) -> str:
+        return "blowing up"
+
+    @property
+    def reads(self) -> Mapping[str, tuple[int, ...]]:
+        return {"velocity": (2,)}
+
+    def contribution(self, state: State, time: float) -> torch.Tensor:
+        value = math.nan if time > self.after else 0.0
+        return torch.full_like(state["velocity"], value)
+
+
+def test_a_non_finite_cfl_number_raises_with_its_step_and_time() -> None:
+    mesh = make_mesh()
+    speed = sum(abs(component) for component in MEAN_FLOW) / mesh.spacing
+    equation = Equation("velocity", [BlowingUp(after=0.31)], projection=mesh.project)
+    time_step = CFLTimeStep("velocity", TARGET, TARGET / speed)
+    simulation = Simulation(mesh, [equation], IFRK4(), time_step)
+
+    with pytest.raises(FloatingPointError, match="CFL number.*step 9, time 0.3375"):
+        simulation.run(uniform_flow(mesh, MEAN_FLOW), 0, 1)

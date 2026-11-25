@@ -139,7 +139,7 @@ class Simulation:
     ) -> None:
         time = start
         step = 0 if writer is None else writer.step
-        proposed = self.time_step.propose(self.mesh, state)
+        proposed = self._propose(state, time, step)
         wall_start, step_start = clock.perf_counter(), step
         if writer is not None and not writer.resumed:
             writer.sample(state, time, step)
@@ -155,7 +155,7 @@ class Simulation:
                 logger.debug("step %d, time %.6g, Δt %.6g", step, time, proposed)
                 if writer is not None:
                     writer.sample(state, time, step)
-                proposed = self.time_step.propose(self.mesh, state)
+                proposed = self._propose(state, time, step)
             if writer is not None:
                 writer.write(state, time, step, proposed)
                 wall = clock.perf_counter()
@@ -167,6 +167,15 @@ class Simulation:
                     (wall - wall_start) / max(step - step_start, 1),
                 )
                 wall_start, step_start = wall, step
+
+    def _propose(self, state: State, time: float, step: int) -> float:
+        proposed = self.time_step.propose(self.mesh, state)
+        cfl_number = self.time_step.cfl_number
+        if cfl_number is not None and not math.isfinite(cfl_number):
+            raise FloatingPointError(
+                f"CFL number is not finite at step {step}, time {time:.6g}"
+            )
+        return proposed
 
 
 def _output_times(
