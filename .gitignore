@@ -4,3 +4,6 @@
 
 # ignore environment files
 *.env
+# ignore virtual environments and build outputs
+.venv/
+dist/
