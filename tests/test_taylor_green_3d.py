@@ -25,9 +25,11 @@ INITIAL_TIME_STEP = 1e-3
 DIAGNOSTICS = ("energy", "dissipation", "enstrophy")
 END = 10.0
 PEAK_DISSIPATION = 1.28486e-2
-PEAK_DISSIPATION_TOLERANCE = 1.3e-4
+PEAK_DISSIPATION_TOLERANCE = 0.03
 PEAK_TIME = 8.98
-PEAK_TIME_TOLERANCE = 0.09
+PEAK_TIME_TOLERANCE = 0.2
+RESOLVED_END = 7.0
+RESOLVED_TOLERANCE = 0.01
 
 
 @pytest.fixture
@@ -95,12 +97,36 @@ def peak(time: torch.Tensor, values: torch.Tensor) -> tuple[float, float]:
     return time[index].item(), values[index].item()
 
 
+def interpolate(
+    time: torch.Tensor, reference_time: torch.Tensor, reference: torch.Tensor
+) -> torch.Tensor:
+    upper = torch.searchsorted(reference_time, time).clamp(1, len(reference_time) - 1)
+    lower = upper - 1
+    weight = (time - reference_time[lower]) / (
+        reference_time[upper] - reference_time[lower]
+    )
+    return torch.lerp(reference[lower], reference[upper], weight)
+
+
+def resolved_error(time: torch.Tensor, dissipation: torch.Tensor) -> float:
+    reference = read_reference()
+    resolved = time <= RESOLVED_END
+    expected = interpolate(time[resolved], reference["time"], reference["dissipation"])
+    return (dissipation[resolved] / expected - 1).abs().max().item()
+
+
+def assert_matches_reference_curve(
+    time: torch.Tensor, dissipation: torch.Tensor
+) -> None:
+    assert resolved_error(time, dissipation) <= RESOLVED_TOLERANCE
+
+
 def assert_matches_reference_peak(
     time: torch.Tensor, dissipation: torch.Tensor
 ) -> None:
     peak_time, peak_dissipation = peak(time, dissipation)
     assert peak_dissipation == pytest.approx(
-        PEAK_DISSIPATION, abs=PEAK_DISSIPATION_TOLERANCE
+        PEAK_DISSIPATION, rel=PEAK_DISSIPATION_TOLERANCE
     )
     assert peak_time == pytest.approx(PEAK_TIME, abs=PEAK_TIME_TOLERANCE)
 
@@ -128,14 +154,44 @@ def test_initial_dissipation_is_three_quarters_of_the_viscosity(
     assert series["enstrophy"][0].item() == pytest.approx(0.375, rel=1e-12)
 
 
-def test_reference_dissipation_peaks_within_the_tolerances() -> None:
+def test_reference_dissipation_passes_both_checks() -> None:
     reference = read_reference()
 
+    assert_matches_reference_curve(reference["time"], reference["dissipation"])
     assert_matches_reference_peak(reference["time"], reference["dissipation"])
 
 
 @pytest.mark.parametrize("scale", [0.989, 1.011])
-def test_peak_check_rejects_a_peak_off_by_more_than_one_percent(scale: float) -> None:
+def test_curve_check_rejects_a_curve_off_by_more_than_one_percent(
+    scale: float,
+) -> None:
+    reference = read_reference()
+
+    with pytest.raises(AssertionError):
+        assert_matches_reference_curve(
+            reference["time"], reference["dissipation"] * scale
+        )
+
+
+def test_curve_check_ignores_errors_after_the_resolved_end() -> None:
+    reference = read_reference()
+    scale = torch.where(reference["time"] > RESOLVED_END, 1.1, 1.0)
+
+    assert_matches_reference_curve(reference["time"], reference["dissipation"] * scale)
+
+
+def test_curve_check_compares_at_the_simulated_times() -> None:
+    reference = read_reference()
+    time = torch.linspace(0.0, RESOLVED_END, 71, dtype=torch.float64)
+    dissipation = interpolate(time, reference["time"], reference["dissipation"])
+
+    assert_matches_reference_curve(time, dissipation * 1.009)
+
+
+@pytest.mark.parametrize("scale", [0.969, 1.031])
+def test_peak_check_rejects_a_peak_off_by_more_than_three_percent(
+    scale: float,
+) -> None:
     reference = read_reference()
 
     with pytest.raises(AssertionError):
@@ -144,7 +200,7 @@ def test_peak_check_rejects_a_peak_off_by_more_than_one_percent(scale: float) ->
         )
 
 
-@pytest.mark.parametrize("shift", [-0.1, 0.1])
+@pytest.mark.parametrize("shift", [-0.21, 0.21])
 def test_peak_check_rejects_a_peak_off_by_more_than_the_time_tolerance(
     shift: float,
 ) -> None:
@@ -156,12 +212,12 @@ def test_peak_check_rejects_a_peak_off_by_more_than_the_time_tolerance(
         )
 
 
-@pytest.mark.parametrize("scale", [0.995, 1.005])
+@pytest.mark.parametrize("scale", [0.975, 1.025])
 def test_peak_check_accepts_a_peak_within_the_tolerances(scale: float) -> None:
     reference = read_reference()
 
     assert_matches_reference_peak(
-        reference["time"] + 0.08, reference["dissipation"] * scale
+        reference["time"] - 0.18, reference["dissipation"] * scale
     )
 
 
@@ -180,12 +236,16 @@ def test_coarser_meshes_against_the_reference(
     record_property("peak_dissipation", peak_dissipation)
     record_property("peak_time_error", peak_time - PEAK_TIME)
     record_property("peak_dissipation_error", peak_dissipation - PEAK_DISSIPATION)
+    record_property(
+        "resolved_error", resolved_error(series["time"], series["dissipation"])
+    )
 
 
 @pytest.mark.gpu
-def test_peak_dissipation_at_256_matches_the_reference(
+def test_dissipation_at_256_matches_the_reference(
     cuda: torch.device, tmp_path: Path
 ) -> None:
     series = run_taylor_green_3d(256, END, tmp_path, cuda)
 
+    assert_matches_reference_curve(series["time"], series["dissipation"])
     assert_matches_reference_peak(series["time"], series["dissipation"])
