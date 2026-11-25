@@ -109,9 +109,12 @@ def test_laplacian_of_a_single_mode(dimension: int) -> None:
 
 
 @pytest.mark.parametrize("dimension", DIMENSIONS)
-def test_laplacian_is_the_divergence_of_the_gradient(dimension: int) -> None:
+def test_laplacian_is_the_divergence_of_the_gradient_without_nyquist(
+    dimension: int,
+) -> None:
     mesh = make_mesh(8, dimension)
-    velocity_spectral = random_vector_spectral(mesh, 2)
+    resolved = (mesh.derivative_wavenumbers == mesh.wavenumbers).all(dim=0)
+    velocity_spectral = random_vector_spectral(mesh, 2) * resolved
     torch.testing.assert_close(
         mesh.divergence(mesh.gradient(velocity_spectral)),
         mesh.laplacian(velocity_spectral),
@@ -234,3 +237,46 @@ def test_operators_do_not_modify_their_argument() -> None:
     mesh.curl_3d(velocity_spectral)
     mesh.project(velocity_spectral)
     torch.testing.assert_close(velocity_spectral, original, rtol=0, atol=0)
+
+
+def nyquist_field_spectral(mesh: Mesh, axis: int) -> torch.Tensor:
+    integers = tuple(
+        mesh.points // 2 if a == axis else 0 for a in range(mesh.dimension)
+    )
+    return spectral(mesh, torch.cos(phase(mesh, integers)))
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_derivative_wavenumbers_drop_only_the_nyquist_mode(dimension: int) -> None:
+    mesh = make_mesh(8, dimension)
+    nyquist = mesh.wavenumbers.abs() == math.pi * mesh.points / mesh.length
+    assert torch.all(mesh.derivative_wavenumbers[nyquist] == 0)
+    assert torch.equal(
+        mesh.derivative_wavenumbers[~nyquist], mesh.wavenumbers[~nyquist]
+    )
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_gradient_of_a_nyquist_mode_is_zero(dimension: int) -> None:
+    mesh = make_mesh(8, dimension)
+    for axis in range(dimension):
+        gradient_spectral = mesh.gradient(nyquist_field_spectral(mesh, axis))
+        assert gradient_spectral.abs().max() < TOLERANCE
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_divergence_of_a_nyquist_mode_is_zero(dimension: int) -> None:
+    mesh = make_mesh(8, dimension)
+    for axis in range(dimension):
+        velocity_spectral = torch.zeros(
+            (dimension, *mesh.spectral_shape), dtype=mesh.complex_dtype
+        )
+        velocity_spectral[axis] = nyquist_field_spectral(mesh, axis)
+        assert mesh.divergence(velocity_spectral).abs().max() < TOLERANCE
+
+
+def test_curl_of_a_nyquist_mode_is_zero() -> None:
+    mesh = make_mesh(8, 3)
+    velocity_spectral = torch.zeros((3, *mesh.spectral_shape), dtype=mesh.complex_dtype)
+    velocity_spectral[1] = nyquist_field_spectral(mesh, 0)
+    assert mesh.curl_3d(velocity_spectral).abs().max() < TOLERANCE
