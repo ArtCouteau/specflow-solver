@@ -206,6 +206,20 @@ def test_a_fresh_run_refuses_a_directory_holding_snapshots(tmp_path: Path) -> No
     assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == before
 
 
+def test_files_named_like_snapshots_without_an_index_are_ignored(
+    tmp_path: Path,
+) -> None:
+    mesh = make_mesh()
+    for name in ("snapshot_backup.h5", "snapshot_.h5", "snapshot_1a.h5"):
+        (tmp_path / name).write_bytes(b"not a snapshot")
+    outputs = Outputs(tmp_path, INTERVAL)
+
+    make_simulation(mesh, outputs).run({"velocity": exact_spectral(mesh, 0)}, 0, 1)
+
+    assert outputs.latest_snapshot(mesh).time == 1
+    assert (tmp_path / "snapshot_backup.h5").read_bytes() == b"not a snapshot"
+
+
 def test_a_fresh_run_never_overwrites_a_time_series(tmp_path: Path) -> None:
     mesh = make_mesh()
     (tmp_path / "time_series.h5").write_bytes(b"precious")

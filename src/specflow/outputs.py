@@ -13,6 +13,7 @@ writes, and nothing is ever deleted or overwritten.
 """
 
 import math
+import re
 import subprocess
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from specflow.terms import State
 type Diagnostic = Callable[[State, float], torch.Tensor]
 
 SNAPSHOT_PREFIX = "snapshot_"
+SNAPSHOT_NAME = re.compile(rf"{SNAPSHOT_PREFIX}([0-9]+)\.h5")
 TIME_SERIES_NAME = "time_series.h5"
 RESERVED_NAMES = ("time", "step")
 
@@ -308,10 +310,8 @@ def _latest_snapshot_path(directory: Path) -> Path:
 
 
 def _snapshot_indices(directory: Path) -> list[int]:
-    return sorted(
-        int(path.stem.removeprefix(SNAPSHOT_PREFIX))
-        for path in directory.glob(f"{SNAPSHOT_PREFIX}*.h5")
-    )
+    matches = (SNAPSHOT_NAME.fullmatch(path.name) for path in directory.glob("*.h5"))
+    return sorted(int(match[1]) for match in matches if match)
 
 
 def _commit() -> str:
