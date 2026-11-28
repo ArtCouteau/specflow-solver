@@ -56,6 +56,19 @@ def dissipation(
     )
 
 
+def injection_rate(
+    mesh: Mesh, velocity_spectral: torch.Tensor, forcing_spectral: torch.Tensor
+) -> torch.Tensor:
+    r"""Return the injection rate $\langle u_i f_i \rangle$ of a forcing contribution.
+
+    It is the sum over the shells, times $\Delta\kappa$, of the contribution's budget
+    spectrum.
+    """
+    product_spectral = torch.mul(velocity_spectral.conj(), forcing_spectral)
+    density_spectral = product_spectral.real.sum(dim=-mesh.dimension - 1)
+    return mesh.decomposition.sum(density_spectral.mul_(mesh.parseval_weights))
+
+
 def enstrophy(mesh: Mesh, velocity_spectral: torch.Tensor) -> torch.Tensor:
     r"""Return the enstrophy $\tfrac12 \langle \omega^2 \rangle$, in 2D or 3D."""
     if mesh.dimension == 2:

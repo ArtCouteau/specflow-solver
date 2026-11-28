@@ -6,6 +6,7 @@ import torch
 from specflow import diagnostics
 from specflow.decomposition import SerialDecomposition
 from specflow.mesh import Mesh
+from specflow.spectra import Shells, budget_spectrum
 
 POINTS = 8
 VISCOSITY = 1 / 1600
@@ -125,3 +126,47 @@ def test_the_fluctuation_kinetic_energy_ignores_a_uniform_mean(dimension: int) -
     expected = diagnostics.kinetic_energy(mesh, velocity_spectral)
     assert fluctuation.item() == pytest.approx(expected.item(), rel=1e-14)
     assert diagnostics.kinetic_energy(mesh, shifted_spectral) > fluctuation
+
+
+def random_spectral(mesh: Mesh, *leading: int, seed: int) -> torch.Tensor:
+    generator = torch.Generator().manual_seed(seed)
+    shape = (*leading, mesh.dimension, *mesh.physical_shape)
+    field_physical = torch.randn(shape, generator=generator, dtype=mesh.dtype)
+    return mesh.project(mesh.decomposition.to_spectral(field_physical))
+
+
+@pytest.mark.parametrize("dimension", [1, 2, 3])
+def test_the_injection_rate_is_the_sum_of_the_forcing_budget_spectrum(
+    dimension: int,
+) -> None:
+    mesh = Mesh(POINTS, 3.0, dimension, SerialDecomposition(POINTS, dimension))
+    shells = Shells(mesh)
+    velocity_spectral = random_spectral(mesh, 2, seed=0)
+    forcing_spectral = random_spectral(mesh, 2, seed=1)
+
+    rate = diagnostics.injection_rate(mesh, velocity_spectral, forcing_spectral)
+
+    budget = budget_spectrum(shells, velocity_spectral, forcing_spectral)
+    expected = budget.sum(-1) * shells.width
+    assert rate.shape == (2,)
+    assert rate.dtype == mesh.dtype
+    assert rate.device == mesh.wavenumbers.device
+    torch.testing.assert_close(rate, expected, rtol=1e-14, atol=1e-14)
+
+
+@pytest.mark.parametrize("phase", [0.0, 1.0, math.pi / 2, math.pi])
+def test_the_injection_rate_of_single_modes_is_known(phase: float) -> None:
+    mesh = make_mesh(3)
+    z = mesh.coordinates[2]
+    zero = torch.zeros_like(z)
+    velocity_physical = torch.stack([1.5 * torch.cos(2 * z), zero, zero])
+    forcing_physical = torch.stack([0.4 * torch.cos(2 * z + phase), zero, zero])
+
+    rate = diagnostics.injection_rate(
+        mesh,
+        mesh.decomposition.to_spectral(velocity_physical),
+        mesh.decomposition.to_spectral(forcing_physical),
+    )
+
+    expected = 0.5 * 1.5 * 0.4 * math.cos(phase)
+    assert rate.item() == pytest.approx(expected, rel=1e-14, abs=1e-15)
