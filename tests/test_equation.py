@@ -1,6 +1,7 @@
 import math
 from collections.abc import Mapping
 
+import pytest
 import torch
 
 from specflow.decomposition import SerialDecomposition
@@ -96,3 +97,22 @@ def test_projection_applies_to_each_contribution_and_the_nonlinear_tendency() ->
     assert_close(contributions["source"], expected_source)
     assert_close(contributions["diffusion"], expected_diffusion)
     assert_close(mesh.divergence(contributions["diffusion"]), torch.zeros(()))
+
+
+def test_check_projected_raises_for_a_variable_the_projection_changes() -> None:
+    mesh = make_mesh(8, 2)
+    velocity_spectral = random_spectral(mesh, 3, 2)
+    state = {"velocity": mesh.project(velocity_spectral) + 1e-6 * velocity_spectral}
+    equation = Equation("velocity", [], projection=mesh.project)
+
+    with pytest.raises(ValueError, match="initial 'velocity' is not divergence-free"):
+        equation.check_projected(mesh, state)
+
+
+@pytest.mark.parametrize("scale", [1.0, 0.0])
+def test_check_projected_passes_a_solenoidal_or_a_zero_variable(scale: float) -> None:
+    mesh = make_mesh(8, 2)
+    velocity_spectral = scale * mesh.project(random_spectral(mesh, 3, 2))
+    equation = Equation("velocity", [], projection=mesh.project)
+
+    equation.check_projected(mesh, {"velocity": velocity_spectral})

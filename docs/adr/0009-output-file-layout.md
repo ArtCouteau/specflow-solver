@@ -1,0 +1,3 @@
+# Output files and their datasets are named after the code
+
+A run's directory holds `snapshot_<index>.h5`, with a six-digit index, and `time_series.h5`, and averaging adds `time_average.h5`. In a snapshot, each kind of content has its own top-level group, `state/<equation>/<variable>`, `terms/<equation>/<term>/<key>`, `diagnostics/<name>` and `shells/<name>`, and every name below a group is the code's own snake_case name. So a reader finds any dataset from the case script alone, the window statistic averages `diagnostics/` without excluding anything by name, and a term state is never mistaken for a variable. Term states live in the snapshot of their output time rather than in a separate restart file, so every snapshot is a restart point.
