@@ -47,8 +47,11 @@ Any term that is not a linear term, evaluated from the state (advection, stress 
 _Avoid_: explicit term
 
 **Term state**:
-The internal state of a term, such as forcing coefficients and their random generator. It belongs to the term, not to the state.
+The internal state of a term: its history and, for a random term, its random generator. It belongs to the term, not to the state.
 _Avoid_: auxiliary state
+
+**History**:
+The previous values a term carries from one step to the next, such as the forcing coefficients. Part of the term state.
 
 **Tendency**:
 The time derivative of a variable, as a function of the state and the time.
@@ -113,6 +116,10 @@ _Avoid_: averaging period
 **Dissipation**:
 The rate at which kinetic energy is lost to viscosity, $2 \nu \langle S_{ij} S_{ij} \rangle$, with $S_{ij}$ the strain rate. A diagnostic, not a term.
 _Avoid_: diffusion
+
+**Injection rate**:
+The rate at which forcing adds kinetic energy, $\langle u_i f_i \rangle$. A diagnostic, not a term.
+_Avoid_: power input, energy input
 
 **Budget**:
 The split of the rate of change of a quadratic quantity, such as kinetic energy, into the contributions of each term.
