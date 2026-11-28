@@ -7,7 +7,7 @@ from collections.abc import Iterable, Iterator, Sequence
 
 import torch
 
-from specflow.equation import Equation, Projection, merge_reads
+from specflow.equation import Equation, merge_reads
 from specflow.integrators import Integrator, Stepper
 from specflow.mesh import Mesh
 from specflow.outputs import Outputs, OutputWriter
@@ -89,8 +89,7 @@ class Simulation:
                 raise ValueError(f"state key {key!r} is evolved by no equation")
             self._check_tensor(key, tensor)
         for equation in self.equations:
-            if equation.projection is not None:
-                self._check_projected(equation.variable, state, equation.projection)
+            equation.check_projected(self.mesh, state)
 
     def _check_tensor(self, key: str, tensor: torch.Tensor) -> None:
         mesh = self.mesh
@@ -114,22 +113,6 @@ class Simulation:
                 f"state key {key!r} is on device {tensor.device}, "
                 f"expected {mesh.wavenumbers.device}"
             )
-
-    def _check_projected(
-        self, variable: str, state: State, projection: Projection
-    ) -> None:
-        field_spectral = state[variable]
-        residual = self._norm(field_spectral - projection(field_spectral))
-        tolerance = math.sqrt(torch.finfo(self.mesh.dtype).eps)
-        if residual > tolerance * self._norm(field_spectral):
-            raise ValueError(
-                f"initial {variable!r} is not divergence-free: the projection "
-                f"changes it by {residual:.3e} in L2 norm"
-            )
-
-    def _norm(self, field_spectral: torch.Tensor) -> float:
-        squares = field_spectral.abs().square_().mul_(self.mesh.parseval_weights)
-        return math.sqrt(self.mesh.decomposition.sum(squares).sum().item())
 
     def _integrate(
         self,
