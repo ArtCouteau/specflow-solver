@@ -1,9 +1,12 @@
 """The evolution law of one variable: a sum of terms, optionally projected."""
 
+import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
 import torch
 
+from specflow.diagnostics import relative_error
+from specflow.mesh import Mesh
 from specflow.terms import LinearTerm, NonlinearTerm, State, Term
 
 type Projection = Callable[[torch.Tensor], torch.Tensor]
@@ -45,6 +48,26 @@ class Equation:
                     f"linear term {term.name!r} reads {sorted(term.reads)}, "
                     f"expected only the variable {self.variable!r}"
                 )
+
+    def check_projected(self, mesh: Mesh, state: State) -> None:
+        """Raise ``ValueError`` if the projection changes the variable in ``state``.
+
+        The tolerance on the relative L2 change is the square root of the machine
+        epsilon of the mesh's dtype; a zero variable passes. Without a projection
+        there is nothing to check.
+        """
+        if self.projection is None:
+            return
+        field_spectral = state[self.variable]
+        component_axes = field_spectral.ndim - mesh.dimension
+        residual = relative_error(
+            mesh, self.projection(field_spectral), field_spectral, component_axes
+        ).item()
+        if residual > math.sqrt(torch.finfo(mesh.dtype).eps):
+            raise ValueError(
+                f"initial {self.variable!r} is not divergence-free: the projection "
+                f"changes it by {residual:.3e} relative to its L2 norm"
+            )
 
     def nonlinear_tendency(
         self, state: State, time: float, out_spectral: torch.Tensor
